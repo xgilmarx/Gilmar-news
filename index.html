@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gilmar News</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">G</span><strong>Gilmar <em>News</em></strong></div>
+    <button id="themeBtn" aria-label="Mudar tema">☀️</button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">RESUMO PERSONALIZADO</p>
+      <h1>Bom dia, Gilmar! 👋</h1>
+      <p>Veja rapidamente o que importa hoje.</p>
+      <div class="stats">
+        <span>📰 <b>8</b> notícias</span>
+        <span>🔔 <b>4</b> alertas</span>
+        <span>💡 <b>6</b> oportunidades</span>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><h2>⭐ O que importa hoje</h2><button class="linkbtn">Ver tudo</button></div>
+      <div id="important" class="cards"></div>
+    </section>
+
+    <section>
+      <div class="section-title"><h2>💡 Oportunidades do dia</h2><button class="linkbtn">Ver tudo</button></div>
+      <div id="opportunities" class="cards horizontal"></div>
+    </section>
+
+    <section>
+      <div class="section-title"><h2>Explorar categorias</h2></div>
+      <div id="categories" class="category-grid"></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="active" data-page="Início">⌂<span>Início</span></button>
+    <button data-page="Categorias">▦<span>Categorias</span></button>
+    <button data-page="Alertas">🔔<span>Alertas</span></button>
+    <button data-page="Favoritos">♡<span>Favoritos</span></button>
+    <button data-page="Perfil">◉<span>Perfil</span></button>
+  </nav>
+
+  <div id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
