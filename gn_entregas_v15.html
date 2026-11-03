@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111827"><title>GN Entregas</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f3f5f8}
+*{box-sizing:border-box}body{margin:0;padding:16px;max-width:820px;margin:auto}
+header{background:#111827;color:white;padding:22px;border-radius:18px;margin-bottom:14px}
+h1{font-size:25px;margin:0 0 5px}header p{margin:0;color:#cbd5e1;font-size:14px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:13px 0}
+.card,section{background:white;border-radius:15px;box-shadow:0 2px 8px #0000000a}
+.card{padding:13px}.k{font-size:12px;color:#64748b}.v{font-size:21px;font-weight:750;margin-top:5px}
+section{padding:17px;margin:13px 0}h2{font-size:17px;margin:0 0 13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+label{display:block;font-size:12px;color:#475569;margin:0 0 5px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;background:white;color:#172033}
+textarea{min-height:65px;resize:vertical}.full{grid-column:1/-1}
+button{border:0;border-radius:11px;padding:12px 14px;font-weight:700;font-size:14px;cursor:pointer}
+.primary{background:#2563eb;color:white}.secondary{background:#e2e8f0;color:#172033}.danger{background:#fee2e2;color:#991b1b}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.actions button{flex:1}
+.note{font-size:12px;color:#64748b;line-height:1.5}.status{padding:10px;border-radius:10px;background:#eff6ff;color:#1e40af;font-size:13px;margin:10px 0}
+.good{background:#ecfdf5;color:#065f46}.warn{background:#fff7ed;color:#9a3412}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}th{color:#64748b;font-weight:600}
+.money{font-weight:800;color:#047857}.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}.stat{background:#f8fafc;border-radius:10px;padding:11px}
+.hidden{display:none!important}
+@media(max-width:520px){.cards{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.full{grid-column:auto}table{font-size:12px}th,td{padding:7px 3px}}
+
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0}
+.tab{background:#e2e8f0;color:#334155;padding:11px 4px;font-size:12px;border-radius:10px}
+.tab.active{background:#1d4ed8;color:white}.page-hidden{display:none!important}
+.photo-preview{width:100%;max-height:220px;object-fit:contain;border-radius:10px;background:#f1f5f9;margin-top:8px}\n.file-action{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 16px;border-radius:12px;font-weight:700;cursor:pointer;text-align:center;flex:1}\n.native-file-picker{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;overflow:hidden!important;pointer-events:none!important}.fuel-level{display:grid;grid-template-columns:repeat(9,1fr);gap:4px}.fuel-level button{padding:8px 2px;background:#e2e8f0;color:#334155}.fuel-level button.selected{background:#2563eb;color:#fff}.small{font-size:11px;color:#64748b}
+@media(max-width:440px){.tab{font-size:11px;padding:10px 2px}}
+</style></head>
+<body>
+<header><h1>🚚 GN Entregas</h1><p>GN Entregas v15 · fotografia e leitura automática do talão num só botão.</p></header>
+<div class="cards">
+ <div class="card"><div class="k">Entregas hoje</div><div class="v" id="todayCount">0</div></div>
+ <div class="card"><div class="k">Km hoje</div><div class="v" id="todayKm">0 km</div></div>
+ <div class="card"><div class="k">Ganhos hoje</div><div class="v" id="todayTotal">€ 0,00</div></div>
+</div>
+<nav class="tabs" aria-label="Navegação principal">
+<button class="tab active" data-page="page-runs">🚚 Corridas</button>
+<button class="tab" data-page="page-costs">⛽ Custos</button>
+<button class="tab" data-page="page-summary">📊 Resumo</button>
+<button class="tab" data-page="page-history">📋 Histórico</button>
+<button class="tab" data-page="page-settings">⚙️ Config.</button>
+</nav>
+<section id='page-runs'>
+<h2>1. Saída da loja Honorato</h2>
+<div class="status good" id="routeStatus">Nenhuma saída aberta. Inicia uma saída quando recolheres as encomendas no Honorato.</div>
+<div class="actions">
+ <button class="primary" id="openRoute">▶ Iniciar saída no Honorato</button>
+ <button class="secondary" id="closeRoute" disabled>■ Fechar saída</button>
+</div>
+<p class="note">Uma saída pode ter várias entregas. Cada cliente fica registado separadamente, com a sua própria distância Honorato → cliente e respetiva taxa. O GPS pode medir o percurso real total da saída; esse valor é separado dos quilómetros usados para calcular o pagamento.</p>
+<hr style="border:0;border-top:1px solid #e2e8f0;margin:15px 0">
+<h2>2. Adicionar entrega à saída</h2>
+<div class="status" id="gpsStatus">GPS desligado. Começa o percurso na loja e termina quando chegares ao cliente.</div>
+<div class="actions">
+ <button class="primary" id="startGps">▶ Iniciar GPS na loja</button>
+ <button class="secondary" id="stopGps" disabled>■ Terminar no cliente</button>
+</div>
+<p class="note">O GPS mede o percurso real enquanto esta página estiver aberta e o iPhone permitir a localização. Deixa a página em primeiro plano durante a corrida. Podes sempre corrigir os quilómetros manualmente.</p>
+<h2>Fotografar e ler talão Honorato</h2>
+<div class="status" id="receiptStatus">Toca no botão para abrir a câmara ou escolher uma fotografia. A leitura começa automaticamente quando selecionares a imagem.</div>
+<div class="actions">
+ <label class="primary file-action" for="receiptPhoto">📸 Ler talão / Tirar ou escolher foto</label>
+ <input id="receiptPhoto" type="file" accept="image/*" capture="environment" class="native-file-picker">
+</div>
+<div class="full"><img id="receiptPreview" class="hidden" alt="Pré-visualização do talão" style="width:100%;max-height:230px;object-fit:contain;border-radius:12px"></div>
+<div class="grid" style="margin-top:12px">
+ <div><label for="orderNo">N.º da encomenda</label><input id="orderNo" placeholder="Ex.: 130899"></div>
+ <div><label for="clientName">Nome do cliente</label><input id="clientName" placeholder="Nome reconhecido"></div>
+ <div class="full"><label for="customerAddress">Morada (rua e número)</label><input id="customerAddress" placeholder="Rua, avenida, número"></div>
+ <div><label for="customerCity">Localidade</label><input id="customerCity" placeholder="Ex.: Braga"></div>
+ <div><label for="customerExtra">Complemento</label><input id="customerExtra" placeholder="Ex.: 1.º esquerdo"></div>
+ <div><label for="receiptDate">Data</label><input id="receiptDate" type="date"></div>
+ <div><label for="receiptTime">Hora</label><input id="receiptTime" type="time"></div>
+ <div class="full"><label for="ocrRaw">Texto reconhecido (podes corrigir)</label><textarea id="ocrRaw" rows="4" placeholder="O texto integral do talão aparece aqui..."></textarea></div>
+</div>
+<div class="actions">
+ <button class="primary" type="button" id="finishReceipt">🗺️ Abrir mapa, calcular km e adicionar entrega</button>
+</div>
+<div class="status" id="distanceStatus">Depois da leitura, confirma a morada e toca no botão azul. A aplicação calcula os km, atualiza os ganhos e abre o percurso no Google Maps.</div>
+<p class="note">O cálculo usa Photon (pesquisa de moradas) e OSRM (rota rodoviária), com dados OpenStreetMap. São serviços públicos gratuitos, sujeitos a limites e disponibilidade; não exigem chave nem cartão. Se não responderem ou a morada for ambígua, podes corrigir os km manualmente. O Google Maps continua disponível para navegação.</p>
+<form id="form">
+<div class="grid">
+ <div><label for="date">Data</label><input id="date" type="date" required></div>
+ <div><label for="time">Hora de entrega</label><input id="time" type="time" required></div>
+ <div><label for="from">Loja de saída</label><input id="from" value="Honorato" readonly></div>
+ <div><label for="to">Rua / destino do cliente</label><input id="to" placeholder="Rua do cliente" required></div>
+ <div><label for="km">Km Honorato → cliente</label><input id="km" type="number" min="0" max="300" step="0.1" placeholder="Distância do Maps ou manual" required><div id="feePreview" class="status" style="margin-top:6px">Introduz os km para ver a taxa.</div></div>
+ <div><label for="method">Origem dos km</label><select id="method"><option>OpenStreetMap + OSRM (grátis)</option><option>GPS</option><option>Manual / Google Maps</option></select></div>
+ <div><label for="status">Estado</label><select id="status"><option>Concluída</option><option>Cancelada</option></select></div>
+ <div class="full"><label for="notes">N.º encomenda, cliente e notas (opcional)</label><textarea id="notes" placeholder="N.º encomenda, espera, observações..."></textarea></div>
+</div>
+<button class="primary" style="width:100%;margin-top:13px" type="submit">Guardar entrega</button>
+</form>
+<p class="note">Taxas: até 2 km €1,50 · mais de 2 até 5 km €2,50 · mais de 5 até 10 km €3,50 · mais de 10 até 15 km €5,00. Acima de 15 km: taxa por definir. A diária de €20 é adicionada uma vez por cada dia com pelo menos uma entrega concluída.</p>
+</section>
+<section id='page-costs'>
+<h2>3. Moto, depreciação e abastecimentos</h2>
+<div class="grid">
+ <div><label for="bikeValue">Valor atual da moto (€)</label><input id="bikeValue" type="number" min="0" step="0.01" value="3600"></div>
+ <div><label for="depreciationRate">Depreciação por dia trabalhado (%)</label><input id="depreciationRate" type="number" min="0" max="1" step="0.01" value="0.04"></div>
+</div>
+<p class="note">Estimativa inicial: 0,04% do valor da moto por dia trabalhado. Com uma PCX avaliada em 3.600 €, reserva 1,44 € por dia. É uma provisão prática para desgaste e perda de valor, não uma avaliação oficial; podes ajustar a taxa.</p>
+<hr style="border:0;border-top:1px solid #e2e8f0;margin:15px 0">
+<h2>Registar abastecimento</h2>
+<div class="grid">
+ <div><label for="fuelDate">Data</label><input id="fuelDate" type="date"></div>
+ <div><label for="fuelCost">Valor pago (€)</label><input id="fuelCost" type="number" min="0" step="0.01" placeholder="Ex.: 15,00"></div>
+ <div><label for="fuelLitres">Litros (opcional)</label><input id="fuelLitres" type="number" min="0" step="0.01" placeholder="Ex.: 8,5"></div>
+ <div><label for="fuelOdo">Km da moto no abastecimento</label><input id="fuelOdo" type="number" min="0" step="1" placeholder="Odómetro (opcional)"></div>
+ <div class="full"><label for="fuelNote">Posto / observação</label><input id="fuelNote" placeholder="Ex.: gasolina 95"></div>
+</div>
+<button class="primary" id="saveFuel" style="width:100%;margin-top:12px">Guardar abastecimento</button>
+<div id="fuelHistory" class="note" style="margin-top:10px"></div>
+</section>
+<section id='page-summary'>
+<div class="actions">
+ <button class="secondary" data-period="day">Hoje</button>
+ <button class="secondary" data-period="week">Esta semana</button>
+ <button class="secondary" data-period="month">Este mês</button>
+</div>
+<div class="status" id="periodLabel"></div>
+<div class="stats">
+ <div class="stat"><div class="k">Entregas concluídas</div><div class="v" id="pCount">0</div></div>
+ <div class="stat"><div class="k">Quilómetros</div><div class="v" id="pKm">0 km</div></div>
+ <div class="stat"><div class="k">Taxas de entrega</div><div class="v" id="pFees">€ 0,00</div></div>
+ <div class="stat"><div class="k">Diárias (€20/dia)</div><div class="v" id="pDaily">€ 0,00</div></div>
+</div>
+<p class="money" id="pTotal" style="font-size:21px;margin-bottom:0">Total: € 0,00</p>
+</section>
+<section id='page-history'>
+<h2>5. Histórico de entregas</h2>
+<div class="grid"><div><label for="filterDate">Filtrar por dia</label><input id="filterDate" type="date"></div><div style="display:flex;align-items:end"><button class="secondary" id="clearFilter" style="width:100%">Ver todas</button></div></div>
+<div style="overflow-x:auto;margin-top:12px"><table><thead><tr><th>Data / hora</th><th>Saída / destino</th><th>Km loja-cliente</th><th>Taxa</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="actions"><button class="secondary" id="csv">Exportar CSV</button><button class="secondary" id="backup">Cópia JSON</button><button class="secondary" id="importBtn">Importar cópia</button><input id="importFile" type="file" accept="application/json" hidden></div>
+<p class="note">Os dados ficam guardados neste navegador do iPhone. Exporta cópias regularmente. Uma saída pode ter várias entregas. A distância tarifada é sempre Honorato → cliente; o GPS da saída mede a deslocação real total e não substitui essa distância. O iPhone pode suspender GPS em segundo plano.</p>
+</section>
+<section id='page-settings'>
+<h2>6. Configuração dos valores por quilómetro</h2>
+<p class="note">Altera os valores pagos por cada entrega. As alterações ficam guardadas neste iPhone e são aplicadas aos novos registos. O histórico antigo mantém os valores já registados.</p>
+<div class="grid">
+ <div><label for="feeBand1">0 a 2 km (€)</label><input id="feeBand1" type="number" min="0" step="0.01"></div>
+ <div><label for="feeBand2">Mais de 2 até 5 km (€)</label><input id="feeBand2" type="number" min="0" step="0.01"></div>
+ <div><label for="feeBand3">Mais de 5 até 10 km (€)</label><input id="feeBand3" type="number" min="0" step="0.01"></div>
+ <div><label for="feeBand4">Mais de 10 até 15 km (€)</label><input id="feeBand4" type="number" min="0" step="0.01"></div>
+ <div class="full"><label for="feeOver15">Mais de 15 km (€) — opcional</label><input id="feeOver15" type="number" min="0" step="0.01" placeholder="Deixar vazio se for combinado caso a caso"></div>
+</div>
+<button class="primary" id="saveFees" style="width:100%;margin-top:12px">Guardar valores por km</button>
+<div id="feeStatus" class="status good">Valores atuais carregados.</div>
+<hr style="border:0;border-top:1px solid #e2e8f0;margin:18px 0">
+<h2>7. Jornada e fotografia do painel</h2>
+<p class="note">Fotografa o painel no início e no fim do dia. A aplicação tenta reconhecer o odómetro pela fotografia; confirma ou corrige o número. O nível de combustível é registado pelas barras que selecionares na fotografia. A leitura das barras não é uma medição exata em litros.</p>
+<div class="grid">
+ <div class="full">
+  <label for="dashStartPhoto">Fotografia do painel — início</label>
+  <input id="dashStartPhoto" type="file" accept="image/*" capture="environment">
+  <img id="dashStartPreview" class="photo-preview hidden" alt="Painel no início">
+  <label for="dashStartKm" style="margin-top:8px">Quilómetros iniciais (confirma a leitura)</label>
+  <input id="dashStartKm" type="number" min="0" step="0.1" placeholder="Ex.: 12540">
+  <label style="margin-top:8px">Combustível no início (barras do painel)</label>
+  <div id="dashStartFuel" class="fuel-level"></div>
+ </div>
+ <div class="full">
+  <label for="dashEndPhoto">Fotografia do painel — fim</label>
+  <input id="dashEndPhoto" type="file" accept="image/*" capture="environment">
+  <img id="dashEndPreview" class="photo-preview hidden" alt="Painel no fim">
+  <label for="dashEndKm" style="margin-top:8px">Quilómetros finais (confirma a leitura)</label>
+  <input id="dashEndKm" type="number" min="0" step="0.1" placeholder="Ex.: 12595">
+  <label style="margin-top:8px">Combustível no fim (barras do painel)</label>
+  <div id="dashEndFuel" class="fuel-level"></div>
+ </div>
+</div>
+<div class="actions">
+ <button class="primary" id="saveDashboardDay">Guardar registo do dia</button>
+ <button class="secondary" id="readDashOdo">Tentar ler km nas fotografias</button>
+</div>
+<div id="dashStatus" class="status">Tira as fotografias e seleciona as barras de combustível visíveis.</div>
+<div id="dashHistory" class="note"></div>
+</section>
+<script>
+const $=id=>document.getElementById(id), today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
+const euro=n=>n.toLocaleString('pt-PT',{style:'currency',currency:'EUR'});
+$('date').value=today();
+let records=[];try{records=JSON.parse(localStorage.getItem('entregas_v1')||'[]')}catch(e){}
+let period='day',watchId=null,track=[],lastPoint=null,gpsKm=0,activeRoute=null,fuelRecords=[];
+try{fuelRecords=JSON.parse(localStorage.getItem('fuel_v1')||'[]')}catch(e){}
+$('fuelDate').value=today();
+$('bikeValue').value=localStorage.getItem('bike_value_v1')||'3600';
+$('depreciationRate').value=localStorage.getItem('depreciation_rate_v1')||'0.04';
+let feeBands={b1:1.5,b2:2.5,b3:3.5,b4:5,over15:null};
+try{const savedFees=JSON.parse(localStorage.getItem('gn_fee_bands_v1')||'null');if(savedFees)feeBands={...feeBands,...savedFees}}catch(e){}
+function fee(k){if(!Number.isFinite(k)||k<0)return null;if(k<=2)return Number(feeBands.b1);if(k<=5)return Number(feeBands.b2);if(k<=10)return Number(feeBands.b3);if(k<=15)return Number(feeBands.b4);return feeBands.over15===''||feeBands.over15===null||feeBands.over15===undefined?null:Number(feeBands.over15)}
+function hav(a,b){const R=6371,rad=x=>x*Math.PI/180,d1=rad(b.lat-a.lat),d2=rad(b.lon-a.lon),q=Math.sin(d1/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(d2/2)**2;return 2*R*Math.asin(Math.sqrt(q))}
+function persist(){localStorage.setItem('entregas_v1',JSON.stringify(records));render()}
+function done(){return records.filter(r=>r.status==='Concluída')}
+function getPeriodDates(){const n=new Date(),d=new Date(n.getFullYear(),n.getMonth(),n.getDate());if(period==='day')return [today(),today()];if(period==='month')return [new Date(n.getFullYear(),n.getMonth(),1).toLocaleDateString('en-CA'),today()];const wd=(d.getDay()+6)%7,s=new Date(d);s.setDate(d.getDate()-wd);return [s.toLocaleDateString('en-CA'),today()]}
+function within(date,a,b){return date>=a&&date<=b}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(){
+ const t=done().filter(r=>r.date===today()),tk=t.reduce((s,r)=>s+r.km,0),tf=t.reduce((s,r)=>s+(r.fee??0),0);
+ $('todayCount').textContent=t.length;$('todayKm').textContent=tk.toLocaleString('pt-PT',{maximumFractionDigits:1})+' km';$('todayTotal').textContent=euro(tf+(t.length?20:0));
+ const [a,b]=getPeriodDates(),rs=done().filter(r=>within(r.date,a,b)),km=rs.reduce((s,r)=>s+r.km,0),fees=rs.reduce((s,r)=>s+(r.fee??0),0),days=new Set(rs.map(r=>r.date)).size,daily=days*20,bike=Number(localStorage.getItem('bike_value_v1')||0),rate=Number(localStorage.getItem('depreciation_rate_v1')||0.04),depreciation=days*bike*(rate/100),fuel=fuelRecords.filter(x=>within(x.date,a,b)).reduce((s,x)=>s+x.cost,0);
+ $('periodLabel').textContent=period==='day'?'Hoje':period==='week'?'Esta semana (segunda a hoje)':'Este mês (dia 1 a hoje)';
+ $('pCount').textContent=rs.length;$('pKm').textContent=km.toLocaleString('pt-PT',{maximumFractionDigits:1})+' km';$('pFees').textContent=euro(fees);$('pDaily').textContent=euro(daily);
+ $('pTotal').textContent='Total bruto: '+euro(fees+daily)+' · após combustível e depreciação: '+euro(fees+daily-fuel-depreciation);
+ document.getElementById('pBreakdown')?.remove();
+ $('pTotal').insertAdjacentHTML('afterend',`<p id="pBreakdown" class="note">Combustível: ${euro(fuel)} · Depreciação (${rate.toLocaleString('pt-PT')}%/dia): ${euro(depreciation)} · Dias trabalhados: ${days}</p>`);
+ const f=$('filterDate').value,view=records.filter(r=>!f||r.date===f).slice().sort((x,y)=>(y.date+y.time).localeCompare(x.date+x.time));
+ $('rows').innerHTML=view.map(r=>`<tr><td>${r.date.split('-').reverse().join('/')}<br>${esc(r.time)}</td><td><b>${esc(r.routeId||'—')}</b><br>${esc(r.to)}<br><span class="note">Honorato · ${esc(r.status)}</span></td><td>${Number(r.km).toLocaleString('pt-PT')}</td><td>${r.fee===null?'Por definir':euro(r.fee)}</td><td><button class="danger" onclick="del('${r.id}')">×</button></td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;padding:18px;color:#64748b">Sem entregas neste filtro.</td></tr>';
+}
+window.del=id=>{if(confirm('Apagar esta entrega?')){records=records.filter(r=>r.id!==id);persist()}};
+function status(msg,cls=''){ $('gpsStatus').className='status '+cls;$('gpsStatus').textContent=msg}
+function openRoute(){
+ if(activeRoute){alert('Já existe uma saída aberta.');return}
+ const raw=prompt('KM DA MOTO NO INÍCIO da saída (odómetro):');
+ if(raw===null)return;
+ const start=Number(raw.replace(',','.'));
+ if(!Number.isFinite(start)||start<0){alert('Introduz um valor válido para os km iniciais.');return}
+ activeRoute={id:'R'+Date.now(),started:new Date().toISOString(),odoStart:start,odoEnd:null,actualKm:0};
+ $('routeStatus').textContent='Saída aberta · '+activeRoute.id+' · odómetro inicial: '+start.toLocaleString('pt-PT')+' km.';
+ $('openRoute').disabled=true;$('closeRoute').disabled=false;
+}
+function closeRoute(){
+ if(!activeRoute)return;
+ const raw=prompt('KM DA MOTO NO FINAL da saída (odómetro):');
+ if(raw===null)return;
+ const end=Number(raw.replace(',','.'));
+ if(!Number.isFinite(end)||end<activeRoute.odoStart){alert('Os km finais têm de ser iguais ou superiores aos km iniciais.');return}
+ activeRoute.odoEnd=end;activeRoute.actualKm=end-activeRoute.odoStart;activeRoute.closed=new Date().toISOString();
+ const rid=activeRoute.id;
+ records.filter(r=>r.routeId===rid).forEach(r=>{r.routeClosed=activeRoute.closed;r.routeOdoStart=activeRoute.odoStart;r.routeOdoEnd=end;r.routeActualKm=activeRoute.actualKm});
+ localStorage.setItem('entregas_v1',JSON.stringify(records));
+ $('routeStatus').textContent='Saída '+rid+' fechada · '+activeRoute.odoStart.toLocaleString('pt-PT')+' → '+end.toLocaleString('pt-PT')+' km · '+activeRoute.actualKm.toLocaleString('pt-PT')+' km percorridos.';
+ activeRoute=null;$('openRoute').disabled=false;$('closeRoute').disabled=true;render();
+}
+$('openRoute').onclick=openRoute;$('closeRoute').onclick=closeRoute;
+function startGPS(){
+ if(!navigator.geolocation){status('Este navegador não disponibiliza GPS. Usa os quilómetros manuais.','warn');return}
+ if(watchId!==null)return;
+ track=[];lastPoint=null;gpsKm=0;
+ status('A obter localização na loja… aceita a permissão de localização do iPhone.');
+ watchId=navigator.geolocation.watchPosition(pos=>{
+  const p={lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy,time:pos.timestamp};
+  if(p.acc>80)return;
+  if(lastPoint){const d=hav(lastPoint,p);if(d<0.5&&d>0.003)gpsKm+=d;else if(d>=0.5){status('GPS detetou um salto de localização. Confirma os km manualmente se necessário.','warn');}}
+  track.push(p);lastPoint=p;
+  status('GPS da saída ativo · '+gpsKm.toFixed(2).replace('.',',')+' km registados · '+track.length+' pontos.','good');
+ },err=>{status('Erro de GPS: '+err.message+'. Verifica a permissão de localização e mantém a página aberta.','warn');stopGPS(false)},{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
+ $('startGps').disabled=true;$('stopGps').disabled=false;
+ $('time').value=new Date().toTimeString().slice(0,5);$('date').value=today();
+}
+function stopGPS(fill=true){
+ if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
+ $('startGps').disabled=false;$('stopGps').disabled=true;
+ if(fill&&track.length>1){status('GPS da saída terminado · '+gpsKm.toFixed(2).replace('.',',')+' km reais. Introduz a distância Honorato → cliente indicada no Maps para calcular a taxa.','good')}
+ else if(fill){status('Não foi possível obter pontos GPS suficientes. Introduz os km manualmente.','warn')}
+}
+$('startGps').onclick=startGPS;$('stopGps').onclick=()=>stopGPS(true);
+$('form').onsubmit=e=>{e.preventDefault();const k=Number($('km').value.replace(',','.'));if(!Number.isFinite(k)||k<0||$('km').value.trim()==='')return alert('Indica quilómetros válidos.');if(!activeRoute && !confirm('Ainda não iniciaste uma saída. Queres guardar esta entrega sem associar a uma saída?'))return;
+const r={id:Date.now().toString(),routeId:activeRoute?activeRoute.id:'Avulsa',routeOdoStart:activeRoute?activeRoute.odoStart:null,date:$('date').value,time:$('time').value,from:'Honorato',to:$('to').value.trim(),km:k,fee:fee(k),status:$('status').value,method:$('method').value,notes:$('notes').value.trim()};records.push(r);persist();$('to').value='';$('km').value='';$('notes').value='';$('from').value='Honorato';$('time').value=new Date().toTimeString().slice(0,5);$('date').value=today();};
+document.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>{period=b.dataset.period;render()});
+$('filterDate').onchange=render;$('clearFilter').onclick=()=>{$('filterDate').value='';render()};
+function download(data,name,type){const a=document.createElement('a'),u=URL.createObjectURL(new Blob([data],{type}));a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+$('csv').onclick=()=>{const head=['Data','Hora','Saída','Origem','Destino','Km Honorato-cliente','Taxa EUR','Estado','Método','Notas'];const lines=[head,...records.map(r=>[r.date,r.time,r.routeId||'',r.from,r.to,r.km,r.fee??'',r.status,r.method||'Manual',r.notes])].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\n');download('\ufeff'+lines,'gilmar-entregas.csv','text/csv;charset=utf-8')};
+$('backup').onclick=()=>download(JSON.stringify({deliveries:records,fuel:fuelRecords,bikeValue:localStorage.getItem('bike_value_v1')||'3600',depreciationRate:localStorage.getItem('depreciation_rate_v1')||'0.04',feeBands,dashboardDays},null,2),'backup-gilmar-entregas.json','application/json');
+$('importBtn').onclick=()=>$('importFile').click();
+$('importFile').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d)&&!Array.isArray(d.deliveries))throw 0;if(confirm('Substituir o histórico atual pela cópia?')){records=Array.isArray(d)?d:d.deliveries;fuelRecords=Array.isArray(d.fuel)?d.fuel:[];if(d.bikeValue)localStorage.setItem('bike_value_v1',d.bikeValue);if(d.depreciationRate)localStorage.setItem('depreciation_rate_v1',d.depreciationRate);if(d.feeBands){feeBands=d.feeBands;localStorage.setItem('gn_fee_bands_v1',JSON.stringify(feeBands))}if(Array.isArray(d.dashboardDays)){dashboardDays=d.dashboardDays;localStorage.setItem('gn_dashboard_days_v1',JSON.stringify(dashboardDays))}localStorage.setItem('fuel_v1',JSON.stringify(fuelRecords));persist();renderFuel()}}catch(x){alert('Cópia inválida.')}e.target.value=''};
+$('bikeValue').addEventListener('change',()=>{const v=Math.max(0,Number($('bikeValue').value||0));localStorage.setItem('bike_value_v1',String(v));render()});
+$('depreciationRate').addEventListener('change',()=>{const v=Math.min(1,Math.max(0,Number($('depreciationRate').value||0)));$('depreciationRate').value=String(v);localStorage.setItem('depreciation_rate_v1',String(v));render()});
+$('saveFuel').onclick=()=>{const cost=Number($('fuelCost').value.replace(',','.'));if(!Number.isFinite(cost)||cost<=0){alert('Indica o valor pago no abastecimento.');return}
+ fuelRecords.push({date:$('fuelDate').value,cost,litres:Number($('fuelLitres').value.replace(',','.'))||null,odo:$('fuelOdo').value||'',note:$('fuelNote').value.trim()});
+ localStorage.setItem('fuel_v1',JSON.stringify(fuelRecords));$('fuelCost').value='';$('fuelLitres').value='';$('fuelOdo').value='';$('fuelNote').value='';renderFuel();render()};
+function renderFuel(){$('fuelHistory').innerHTML=fuelRecords.slice().reverse().map(x=>`${esc(x.date)} · ${euro(x.cost)}${x.litres?' · '+x.litres+' L':''}${x.note?' · '+esc(x.note):''}`).join('<br>')||'Ainda sem abastecimentos registados.'}
+renderFuel();
+
+// Configuração editável das taxas por quilómetro.
+function loadFeeInputs(){
+ $('feeBand1').value=feeBands.b1;$('feeBand2').value=feeBands.b2;$('feeBand3').value=feeBands.b3;$('feeBand4').value=feeBands.b4;$('feeOver15').value=feeBands.over15??'';
+}
+loadFeeInputs();
+$('saveFees').onclick=()=>{
+ const ids=['feeBand1','feeBand2','feeBand3','feeBand4'];
+ if(ids.some(id=>$(id).value===''||!Number.isFinite(Number($(id).value))||Number($(id).value)<0)){alert('Preenche os quatro escalões com valores iguais ou superiores a zero.');return}
+ const over=$('feeOver15').value.trim();
+ if(over!==''&&(!Number.isFinite(Number(over))||Number(over)<0)){alert('O valor acima de 15 km deve ser um número positivo ou ficar vazio.');return}
+ feeBands={b1:Number($('feeBand1').value),b2:Number($('feeBand2').value),b3:Number($('feeBand3').value),b4:Number($('feeBand4').value),over15:over===''?null:Number(over)};
+ localStorage.setItem('gn_fee_bands_v1',JSON.stringify(feeBands));
+ $('feeStatus').textContent='Valores guardados neste dispositivo. Aplicam-se às próximas entregas.';
+ render();
+};
+
+// Registo do painel: guardar fotografias comprimidas localmente e tentar OCR do odómetro.
+function makeFuelButtons(id,initial){
+ const host=$(id);host.innerHTML='';
+ for(let n=0;n<=8;n++){
+  const b=document.createElement('button');b.type='button';b.textContent=n===0?'0':n===8?'8/8':String(n);
+  b.className='fuelbar'+(initial===n?' selected':'');b.setAttribute('aria-label',n+' de 8 barras');
+  b.onclick=()=>{if(id==='dashStartFuel')dashStartLevel=n;else dashEndLevel=n;[...host.children].forEach((x,i)=>x.classList.toggle('selected',i===n))};
+  host.appendChild(b);
+ }
+}
+makeFuelButtons('dashStartFuel',null);makeFuelButtons('dashEndFuel',null);
+function compressImage(file){
+ return new Promise((resolve,reject)=>{
+  const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{const scale=Math.min(1,1200/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);resolve(c.toDataURL('image/jpeg',0.72))};
+  img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Não consegui abrir a fotografia.'))};img.src=url;
+ });
+}
+async function handleDashPhoto(which,file){
+ if(!file)return;
+ try{
+  const data=await compressImage(file),img=$(which==='start'?'dashStartPreview':'dashEndPreview');
+  img.src=data;img.classList.remove('hidden');
+  if(which==='start')dashStartImage=data;else dashEndImage=data;
+  $('dashStatus').textContent='Fotografia '+(which==='start'?'inicial':'final')+' guardada temporariamente. Podes tentar reconhecer os quilómetros.';
+ }catch(e){$('dashStatus').textContent=e.message}
+}
+$('dashStartPhoto').onchange=e=>handleDashPhoto('start',e.target.files[0]);
+$('dashEndPhoto').onchange=e=>handleDashPhoto('end',e.target.files[0]);
+async function readOdometer(data){
+ if(!data)throw new Error('Tira primeiro a fotografia do painel.');
+ if(!window.Tesseract){
+  await new Promise((resolve,reject)=>{
+   const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';sc.onload=resolve;sc.onerror=()=>reject(new Error('Não foi possível carregar o leitor OCR. Verifica a internet.'));document.head.appendChild(sc);
+  });
+ }
+ const result=await Tesseract.recognize(data,'eng');
+ const raw=result.data.text||'';
+ const candidates=(raw.match(/\b\d{3,7}(?:[.,]\d)?\b/g)||[]).map(x=>Number(x.replace(',','.'))).filter(x=>x>0);
+ if(!candidates.length)throw new Error('Não consegui identificar o odómetro. Introduz os km manualmente.');
+ return candidates.sort((a,b)=>b-a)[0];
+}
+$('readDashOdo').onclick=async()=>{
+ const btn=$('readDashOdo');btn.disabled=true;$('dashStatus').textContent='A analisar as fotografias. Pode demorar um pouco…';
+ try{
+  if(dashStartImage){const v=await readOdometer(dashStartImage);$('dashStartKm').value=v}
+  if(dashEndImage){const v=await readOdometer(dashEndImage);$('dashEndKm').value=v}
+  $('dashStatus').textContent='Leitura OCR concluída. Confirma os números: reflexos, ângulo e outros dígitos podem causar erros.';
+ }catch(e){$('dashStatus').textContent=e.message}
+ finally{btn.disabled=false}
+};
+$('saveDashboardDay').onclick=()=>{
+ const start=Number($('dashStartKm').value),end=Number($('dashEndKm').value);
+ if(!Number.isFinite(start)||!Number.isFinite(end)||start<=0||end<start){alert('Confirma os quilómetros inicial e final. O valor final não pode ser inferior ao inicial.');return}
+ if(dashStartLevel===null||dashEndLevel===null){if(!confirm('Não selecionaste as barras de combustível inicial e final. Guardar mesmo assim?'))return}
+ const item={date:today(),startKm:start,endKm:end,distance:Number((end-start).toFixed(1)),startFuelBars:dashStartLevel,endFuelBars:dashEndLevel,startPhoto:dashStartImage,endPhoto:dashEndImage,createdAt:new Date().toISOString()};
+ dashboardDays=dashboardDays.filter(x=>x.date!==item.date);dashboardDays.push(item);
+ localStorage.setItem('gn_dashboard_days_v1',JSON.stringify(dashboardDays));
+ $('dashStatus').className='status good';
+ $('dashStatus').textContent='Registo guardado: '+item.distance.toLocaleString('pt-PT')+' km percorridos. Combustível: '+(dashStartLevel===null?'—':dashStartLevel+'/8')+' → '+(dashEndLevel===null?'—':dashEndLevel+'/8')+' barras.';
+ renderDashboard();
+};
+function renderDashboard(){
+ $('dashHistory').innerHTML=dashboardDays.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<div style="padding:8px 0;border-bottom:1px solid #e2e8f0"><b>${esc(x.date)}</b> · ${x.distance.toLocaleString('pt-PT')} km · Combustível ${x.startFuelBars??'—'}/8 → ${x.endFuelBars??'—'}/8 barras</div>`).join('')||'Ainda não existem registos diários do painel.';
+}
+renderDashboard();
+
+document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>{
+ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));
+ ['page-runs','page-costs','page-summary','page-history','page-settings'].forEach(id=>$(id).classList.toggle('page-hidden',id!==btn.dataset.page));
+}));
+['page-costs','page-summary','page-history','page-settings'].forEach(id=>$(id).classList.add('page-hidden'));
+let receiptFile=null;
+async function acceptReceiptFile(file){
+ if(!file)return;
+ if(!file.type || !file.type.startsWith('image/')){$('receiptStatus').textContent='Este ficheiro não parece ser uma imagem. Escolhe uma fotografia JPG, PNG ou HEIC.';return}
+ const oldUrl=$('receiptPreview').dataset.url;
+ if(oldUrl)URL.revokeObjectURL(oldUrl);
+ const url=URL.createObjectURL(file);
+ $('receiptPreview').src=url;$('receiptPreview').dataset.url=url;
+ $('receiptPreview').classList.remove('hidden');
+ $('receiptStatus').textContent='A preparar fotografia…';
+ try{
+  // Re-encode through canvas: improves compatibility with iPhone HEIC and image orientation.
+  const img=new Image();
+  await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('Não consegui abrir esta fotografia. Tenta escolher uma imagem JPG.'));img.src=url});
+  const scale=Math.min(1,2200/Math.max(img.naturalWidth,img.naturalHeight));
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.round(img.naturalWidth*scale);canvas.height=Math.round(img.naturalHeight*scale);
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(img,0,0,canvas.width,canvas.height);
+  receiptFile=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.92));
+  if(!receiptFile)throw new Error('Não foi possível preparar a imagem para leitura.');
+  $('receiptStatus').textContent='Fotografia pronta. Agora toca em “Ler talão automaticamente”.';
+ }catch(err){
+  receiptFile=file;
+  $('receiptStatus').textContent='Fotografia carregada. A leitura vai tentar usar o ficheiro original: '+err.message;
+ }
+}
+$('receiptPhoto').addEventListener('change',async e=>{
+ const file=e.target.files&&e.target.files[0];
+ e.target.value='';
+ if(!file)return;
+ await acceptReceiptFile(file);
+ if(receiptFile) await readReceiptAutomatically();
+});
+function setReceiptDate(dateText,timeText){
+ const m=dateText.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+ if(m)$('receiptDate').value=m[3]+'-'+m[2]+'-'+m[1];
+ const t=timeText.match(/(\d{2}):(\d{2})/);
+ if(t)$('receiptTime').value=t[1]+':'+t[2];
+}
+function parseHonoratoReceipt(text){
+ const raw=String(text||'').replace(/\r/g,'');
+ const lines=raw.split('\n').map(x=>x.replace(/[|¦]/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+ const norm=x=>x.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const findLine=(patterns)=>{
+  const re=new RegExp(patterns,'i');
+  return lines.findIndex(x=>re.test(norm(x)));
+ };
+ const valueAfter=(line,labels)=>{
+  const n=norm(line);
+  for(const label of labels){
+   const at=n.indexOf(label);
+   if(at>=0){const colon=line.indexOf(':');if(colon>=0)return line.slice(colon+1).trim();return line.slice(at+label.length).replace(/^[\s:#-]+/,'').trim();}
+  }
+  return '';
+ };
+ const assign=(id,v)=>{if(v && $(id))$(id).value=v};
+ // Order number: support DELIVERY #123, Nº encomenda, Pedido, Order.
+ let m=raw.match(/(?:delivery|encomenda|pedido|order)\s*(?:n[.º°o]*\s*)?#?\s*[:#-]?\s*(\d{4,})/i);
+ if(m)assign('orderNo',m[1]);
+ // Customer name: exact labeled line only.
+ let idx=findLine('(?:nome(?:\\s+do\\s+cliente)?|cliente|customer\\s*name)\\s*[:#-]');
+ if(idx>=0)assign('clientName',valueAfter(lines[idx],['nome do cliente','nome','cliente','customer name']));
+ // Address: support Endereço, Morada, Rua, Address. Keep next continuation lines but stop at other fields.
+ idx=findLine('(?:endereco|morada|address|rua)\\s*[:#-]');
+ let address='';
+ if(idx>=0){
+  address=valueAfter(lines[idx],['endereco','morada','address','rua']);
+  const stop=/^(?:complemento|andar|tipo|data|hora|telefone|telemovel|codigo postal|cod\\. postal|cp|localidade|cidade|cliente|nome|nif|pedido|delivery)\\s*[:#-]?/i;
+  for(let j=idx+1;j<Math.min(lines.length,idx+4);j++){
+   if(stop.test(norm(lines[j])))break;
+   if(/\d{4}-\d{3}/.test(lines[j]))break;
+   if(lines[j].length>2)address+=' '+lines[j];
+  }
+  address=address.replace(/\s+/g,' ').replace(/[;,.\s]+$/,'');
+  // Remove postal code accidentally captured at end of address.
+  address=address.replace(/[, ]+\d{4}-\d{3}(?:\s+[A-ZÀ-ÿ-]+)?$/i,'').trim();
+  assign('customerAddress',address);
+ }
+ // Postal code and locality should be separate, not merged into street.
+ m=raw.match(/\b(\d{4}-\d{3})\s+([A-ZÀ-ÿ][A-ZÀ-ÿ -]{2,})/i);
+ if(m){
+  const postal=m[1],city=m[2].trim();
+  assign('customerCity',city);
+  if($('customerExtra') && !$('customerExtra').value)assign('customerExtra','');
+  if($('customerAddress').value)$('customerAddress').value=$('customerAddress').value.replace(new RegExp('[, ]*'+postal.replace('-','\\-')+'.*$','i'),'').trim();
+ }else{
+  // Some receipts show city on its own after the address.
+  const cityLine=lines.find(x=>/\b(?:BRAGA|PORTO|GUIMARAES|FAMALICAO|VILA VERDE)\b/i.test(norm(x)) && !/endereco|morada|address/i.test(norm(x)));
+  if(cityLine && !$('customerCity').value)assign('customerCity',cityLine.replace(/^\d{4}-\d{3}\s*/,'').trim());
+ }
+ idx=findLine('(?:complemento|andar|fra[cç]ao|porta)\\s*[:#-]');
+ if(idx>=0)assign('customerExtra',valueAfter(lines[idx],['complemento','andar','fracao','porta']));
+ // Date and time from explicit label, or common receipt timestamp.
+ m=raw.match(/(?:data|date)\s*[:#-]?\s*(\d{2}[\/.-]\d{2}[\/.-]\d{4})\s*,?\s*(\d{2}:\d{2})/i);
+ if(!m)m=raw.match(/\b(\d{2}[\/.-]\d{2}[\/.-]\d{4})\s*,?\s*(\d{2}:\d{2})\b/);
+ if(m)setReceiptDate(m[1].replace(/[.-]/g,'/'),m[2]);
+ // Keep phone and other receipt content only in raw OCR, never put them in address.
+ const hasUseful=!!($('orderNo').value||$('clientName').value||$('customerAddress').value||$('receiptDate').value);
+ $('receiptStatus').textContent=hasUseful
+  ?'Campos identificados. Confirma nome, rua, número, código postal/localidade e complemento antes de usar.'
+  :'Não consegui separar os campos com segurança. O texto completo ficou disponível para correção manual.';
+}
+async function readReceiptAutomatically(){
+ if(!receiptFile){alert('Tira ou escolhe primeiro a fotografia do talão.');return}
+ $('receiptStatus').textContent='A preparar reconhecimento do talão…';
+ try{
+  if(!window.Tesseract){
+   const urls=['https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js','https://unpkg.com/tesseract.js@5/dist/tesseract.min.js'];
+   let loaded=false;
+   for(const url of urls){
+    try{await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src=url;sc.onload=resolve;sc.onerror=()=>reject(new Error('Falha ao carregar '+url));document.head.appendChild(sc)});loaded=true;break}catch(e){}
+   }
+   if(!loaded)throw new Error('Não foi possível carregar o motor OCR. Confirma a ligação à internet.');
+  }
+  $('receiptStatus').textContent='Motor de leitura pronto. A analisar a fotografia…';
+  const result=await window.Tesseract.recognize(receiptFile,'por+eng',{logger:m=>{if(m.status==='recognizing text')$('receiptStatus').textContent='A ler talão: '+Math.round((m.progress||0)*100)+'%'}});
+  $('ocrRaw').value=result.data.text||'';parseHonoratoReceipt(result.data.text||'');
+  $('receiptStatus').textContent='Leitura concluída. Confirma número, nome, morada, complemento e hora.';
+ }catch(err){$('receiptStatus').textContent='Falha na leitura: '+(err&&err.message?err.message:'erro desconhecido')+'. Confirma a internet, tenta uma foto mais nítida ou preenche os campos manualmente.'}
+}
+
+// Cálculo rodoviário gratuito: Photon geocoding + OSRM routing.
+const PHOTON='https://photon.komoot.io/api/';
+const NOMINATIM='https://nominatim.openstreetmap.org/search';
+const OSRM='https://router.project-osrm.org/route/v1/driving/';
+async function geocode(query){
+ query=String(query||'').trim();
+ if(query.length<4)throw new Error('Morada incompleta. Indica rua, número e localidade.');
+ const url=NOMINATIM+'?format=jsonv2&limit=5&countrycodes=pt&q='+encodeURIComponent(query);
+ try{
+  const r=await fetch(url,{headers:{'Accept':'application/json'}});
+  if(r.ok){const a=await r.json();if(a.length)return a.map(x=>({lat:Number(x.lat),lon:Number(x.lon),label:x.display_name,source:'Nominatim'}))}
+ }catch(e){}
+ const r=await fetch(PHOTON+'?'+new URLSearchParams({q:query,limit:'5'}),{headers:{'Accept':'application/json'}});
+ if(!r.ok)throw new Error('Os serviços gratuitos de pesquisa estão indisponíveis. Tenta novamente ou introduz os km manualmente.');
+ const j=await r.json();
+ return (j.features||[]).filter(x=>x.geometry?.coordinates).map(x=>({lon:Number(x.geometry.coordinates[0]),lat:Number(x.geometry.coordinates[1]),label:describePhoton(x),source:'Photon'}));
+}
+function describePhoton(f){const p=f.properties||{};return [p.name,p.street,p.housenumber,p.district,p.city,p.county,p.state].filter(Boolean).join(', ')}
+function euroSafe(n){return Number(n).toLocaleString('pt-PT',{style:'currency',currency:'EUR'})}
+function updateFeePreview(){
+ const raw=$('km').value.replace(',','.'),k=Number(raw),el=$('feePreview');
+ if(raw===''||!Number.isFinite(k)||k<0){el.textContent='Introduz os km para ver a taxa.';el.className='status';return}
+ const v=fee(k);el.className='status good';
+ el.textContent='Distância: '+k.toLocaleString('pt-PT',{maximumFractionDigits:1})+' km · Taxa: '+(v===null?'Por definir':euroSafe(v));
+}
+$('km').addEventListener('input',updateFeePreview);
+async function calculateReceiptDistance(){
+ const address=[$('customerAddress').value,$('customerCity').value].filter(Boolean).join(', ');
+ const fullAddress=[$('customerAddress').value,$('customerExtra').value,$('customerCity').value].filter(Boolean).join(', ');
+ if(!$('customerAddress').value.trim()||!$('customerCity').value.trim()){
+  alert('Preenche a rua/número e a localidade antes de calcular.');return;
+ }
+
+ $('distanceStatus').className='status';
+ $('distanceStatus').textContent='A procurar a morada do cliente no OpenStreetMap…';
+ try{
+  const dests=await geocode(address+', Portugal');
+  if(!dests.length)throw new Error('Não encontrei essa morada. Confirma a rua, número e localidade.');
+  let dest=dests[0];
+  if(dests.length>1){
+   const options=dests.slice(0,5).map((f,i)=>(i+1)+'. '+(f.label||'Morada encontrada')).join('\n');
+   const choice=prompt('Confirma a morada encontrada (escreve o número da opção):\n\n'+options,'1');
+   if(choice===null)throw new Error('Pesquisa cancelada. Confirma a morada e tenta novamente.');
+   const idx=Number(choice)-1;
+   if(!Number.isInteger(idx)||idx<0||idx>=Math.min(dests.length,5))throw new Error('Opção inválida. Tenta novamente.');
+   dest=dests[idx];
+  }
+  $('distanceStatus').textContent='Morada encontrada: '+(dest.label||'Morada selecionada')+'. A calcular o percurso desde o Honorato…';
+  const origins=await geocode('Honorato, Braga, Portugal');
+  if(!origins.length)throw new Error('Não consegui localizar o Honorato em Braga. Usa os km manuais.');
+  const origin=origins[0];
+  const olon=origin.lon,olat=origin.lat,dlon=dest.lon,dlat=dest.lat;
+  const routeUrl=OSRM+olon+','+olat+';'+dlon+','+dlat+'?overview=false&alternatives=false&steps=false';
+  const response=await fetch(routeUrl,{headers:{'Accept':'application/json'}});
+  if(!response.ok)throw new Error('O serviço de rotas está temporariamente indisponível (HTTP '+response.status+').');
+  const data=await response.json();
+  if(data.code!=='Ok'||!data.routes||!data.routes.length)throw new Error('Não foi possível calcular uma rota de carro para esta morada.');
+  const km=data.routes[0].distance/1000;
+  $('km').value=km.toFixed(1);updateFeePreview();
+  $('method').value='OpenStreetMap + OSRM (grátis)';
+  $('to').value=fullAddress;
+  const feeValue=fee(km);
+  $('distanceStatus').className='status good';
+  $('distanceStatus').textContent='Rota calculada: '+km.toLocaleString('pt-PT',{minimumFractionDigits:1,maximumFractionDigits:1})+' km por estrada · taxa prevista: '+(feeValue===null?'Por definir':euro(feeValue))+'. Confirma que a morada selecionada corresponde ao talão.';
+ }catch(err){
+  $('distanceStatus').className='status warn';
+  $('distanceStatus').textContent=(err&&err.message?err.message:'Erro ao calcular a distância');
+  throw err;
+ }
+}
+
+$('finishReceipt').onclick=async()=>{
+ const btn=$('finishReceipt');
+ if(!$('customerAddress').value.trim()||!$('customerCity').value.trim()){
+  alert('Primeiro fotografa o talão e confirma a rua e a localidade que foram lidas.');
+  return;
+ }
+ const addr=[$('customerAddress').value,$('customerExtra').value,$('customerCity').value].filter(Boolean).join(', ');
+ if(!activeRoute && !confirm('Ainda não iniciaste uma saída no Honorato. Queres adicionar esta entrega sem associar a uma saída?'))return;
+ btn.disabled=true;
+ try{
+  await calculateReceiptDistance();
+  const kmText=$('km').value.trim();
+  const k=Number(kmText.replace(',','.'));
+  if(!Number.isFinite(k)||kmText===''||k<0)throw new Error('Não foi possível obter os quilómetros.');
+  $('to').value=addr;
+  const ref=[$('orderNo').value,$('clientName').value].filter(Boolean).join(' - ');
+  $('notes').value=[ref,$('notes').value].filter(Boolean).join(' | ');
+  if($('receiptDate').value)$('date').value=$('receiptDate').value;
+  if($('receiptTime').value)$('time').value=$('receiptTime').value;
+  $('form').requestSubmit();
+  const mapsUrl='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent('Honorato Braga, Portugal')+'&destination='+encodeURIComponent(addr)+'&travelmode=driving';
+  window.open(mapsUrl,'_blank');
+  $('distanceStatus').className='status good';
+  $('distanceStatus').textContent='Entrega adicionada! '+k.toLocaleString('pt-PT',{maximumFractionDigits:1})+' km · taxa '+(fee(k)===null?'por definir':euro(fee(k)))+'. Os ganhos do dia foram atualizados. O percurso foi aberto no Google Maps.';
+ }catch(err){
+  $('distanceStatus').className='status warn';
+  if(!$('distanceStatus').textContent.includes(err.message))$('distanceStatus').textContent=err.message||'Não foi possível concluir a entrega.';
+ }finally{btn.disabled=false;}
+};
+
+['page-costs','page-summary','page-history','page-settings'].forEach(id=>$(id).classList.add('page-hidden'));
+render();
+
+</script></body></html>
