@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827"><meta name="color-scheme" content="light"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🚚%3C/text%3E%3C/svg%3E"><meta name="apple-mobile-web-app-capable" content="yes"><title>GN Entregas</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#172033;background:#f3f5f8;color-scheme:light;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+*{box-sizing:border-box}body{margin:0 auto;padding:16px;max-width:820px}
+header{background:#111827;color:#fff;padding:22px;border-radius:18px;margin-bottom:14px}
+h1{font-size:25px;margin:0 0 5px}header p{margin:0;color:#cbd5e1;font-size:14px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:13px 0}
+.card,section{background:#fff;border-radius:15px;box-shadow:0 2px 8px #0000000a}
+.card{padding:13px}.k{font-size:12px;color:#64748b}.v{font-size:21px;font-weight:750;margin-top:5px}
+section{padding:17px;margin:13px 0}h2{font-size:17px;margin:0 0 13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+label{display:block;font-size:12px;color:#475569;margin:0 0 5px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;font-size:16px;background:#fff;color:#172033}
+textarea{min-height:65px;resize:vertical}.full{grid-column:1/-1}
+button{font-family:inherit;border:0;border-radius:11px;padding:12px 14px;font-weight:700;font-size:14px;cursor:pointer}
+button:disabled{opacity:.5}
+.primary{background:#2563eb;color:#fff}.secondary{background:#e2e8f0;color:#172033}.danger{background:#fee2e2;color:#991b1b}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.actions>*{flex:1}
+.note{font-size:12px;color:#64748b;line-height:1.5}.status{padding:10px;border-radius:10px;background:#eff6ff;color:#1e40af;font-size:13px;margin:10px 0}
+.good{background:#ecfdf5;color:#065f46}.warn{background:#fff7ed;color:#9a3412}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}th{color:#64748b;font-weight:600}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}.stat{background:#f8fafc;border-radius:10px;padding:11px}
+.hidden,.page-hidden{display:none!important}
+hr{border:0;border-top:1px solid #e2e8f0;margin:15px 0}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:14px 0}
+.tab{background:#e2e8f0;color:#334155;padding:11px 2px;font-size:12px;border-radius:10px}
+.tab.active{background:#1d4ed8;color:#fff}
+.photo-preview{width:100%;max-height:220px;object-fit:contain;border-radius:10px;background:#f1f5f9;margin-top:8px}
+.file-action{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 16px;border-radius:12px;font-weight:700;cursor:pointer;text-align:center;margin:0;font-size:14px;color:#fff;text-decoration:none}
+.file-action.secondary{color:#172033}
+.native-file-picker{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+.fuel-level{display:grid;grid-template-columns:repeat(9,1fr);gap:4px}.fuel-level button{padding:8px 2px;background:#e2e8f0;color:#334155}.fuel-level button.selected{background:#2563eb;color:#fff}
+@media(max-width:520px){.cards{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.full{grid-column:auto}table{font-size:12px}th,td{padding:7px 3px}.tab{font-size:11px}}
+</style></head>
+<body>
+<header><h1>🚚 GN Entregas</h1><p>v18 · talão, rota, taxas e custos num só sítio.</p></header>
+<div class="cards">
+ <div class="card"><div class="k">Entregas hoje</div><div class="v" id="todayCount">0</div></div>
+ <div class="card"><div class="k">Km hoje</div><div class="v" id="todayKm">0 km</div></div>
+ <div class="card"><div class="k">Ganhos hoje</div><div class="v" id="todayTotal">€ 0,00</div></div>
+</div>
+<nav class="tabs" aria-label="Navegação principal">
+<button class="tab active" data-page="page-runs">🚚 Corridas</button>
+<button class="tab" data-page="page-costs">⛽ Custos</button>
+<button class="tab" data-page="page-summary">📊 Resumo</button>
+<button class="tab" data-page="page-history">📋 Histórico</button>
+<button class="tab" data-page="page-settings">⚙️ Config.</button>
+</nav>
+
+<section id="page-runs">
+<h2>1. Saída</h2>
+<div class="status good" id="routeStatus">Nenhuma saída aberta. Inicia uma saída quando recolheres as encomendas.</div>
+<div class="actions">
+ <button class="primary" id="openRoute">▶ Iniciar saída</button>
+ <button class="secondary" id="closeRoute" disabled>■ Fechar saída</button>
+</div>
+<p class="note">Uma saída pode ter várias entregas. A taxa de cada cliente usa a distância desde o sítio onde estás (GPS) até ao cliente; o odómetro mede o percurso real total da saída.</p>
+<hr>
+<h2>2. Fotografar talão</h2>
+<div class="status" id="receiptStatus">Tira uma foto ou escolhe da galeria. A leitura e o cálculo começam sozinhos, com saída na tua localização GPS.</div>
+<div class="actions">
+ <label class="primary file-action" for="receiptCam">📸 Tirar foto</label>
+ <label class="secondary file-action" for="receiptGal">🖼️ Escolher da galeria</label>
+</div>
+<input id="receiptCam" type="file" accept="image/*" capture="environment" class="native-file-picker">
+<input id="receiptGal" type="file" accept="image/*" class="native-file-picker">
+<img id="receiptPreview" class="photo-preview hidden" alt="Pré-visualização do talão">
+<div class="grid" style="margin-top:12px">
+ <div><label for="orderNo">N.º da encomenda</label><input id="orderNo" placeholder="Ex.: 130899"></div>
+ <div><label for="clientName">Nome do cliente</label><input id="clientName"></div>
+ <div class="full"><label for="customerAddress">Morada (rua e número)</label><input id="customerAddress" placeholder="Rua, avenida, número"></div>
+ <div><label for="customerPostal">Código postal</label><input id="customerPostal" inputmode="numeric" placeholder="4700-000"></div>
+ <div><label for="customerCity">Localidade</label><input id="customerCity" placeholder="Ex.: Braga"></div>
+ <div class="full"><label for="customerExtra">Complemento</label><input id="customerExtra" placeholder="Ex.: 1.º esquerdo"></div>
+ <div><label for="receiptDate">Data do talão</label><input id="receiptDate" type="date"></div>
+ <div><label for="receiptTime">Hora do talão</label><input id="receiptTime" type="time"></div>
+ <div class="full"><label for="ocrRaw">Texto reconhecido (podes corrigir)</label><textarea id="ocrRaw" rows="3"></textarea></div>
+</div>
+<div class="actions"><button class="primary" type="button" id="finishReceipt">🗺️ Calcular km e adicionar entrega</button></div>
+<div class="status" id="distanceStatus">Confirma a morada e toca no botão azul.</div>
+<div class="actions"><a id="mapsLink" class="primary file-action hidden" target="_blank" rel="noopener">Abrir percurso no Google Maps</a></div>
+<p class="note">Rotas calculadas com Nominatim/Photon e OSRM (OpenStreetMap), serviços gratuitos e sujeitos a limites. Se falharem, usa o formulário abaixo com km manuais.</p>
+<hr>
+<h2>3. Entrega manual</h2>
+<div class="status" id="gpsStatus">GPS desligado (opcional).</div>
+<div class="actions">
+ <button class="secondary" id="startGps">▶ Iniciar GPS</button>
+ <button class="secondary" id="stopGps" disabled>■ Parar GPS</button>
+</div>
+<form id="form" style="margin-top:12px">
+<div class="grid">
+ <div><label for="date">Data</label><input id="date" type="date" required></div>
+ <div><label for="time">Hora de entrega</label><input id="time" type="time" required></div>
+ <div class="full"><label for="to">Destino do cliente</label><input id="to" placeholder="Rua do cliente" required></div>
+ <div><label for="km">Km saída → cliente</label><input id="km" inputmode="decimal" placeholder="Ex.: 3,4" required><div id="feePreview" class="status" style="margin-top:6px">Introduz os km para ver a taxa.</div></div>
+ <div><label for="method">Origem dos km</label><select id="method"><option>OpenStreetMap + OSRM (grátis)</option><option>GPS</option><option>Manual / Google Maps</option></select></div>
+ <div><label for="status">Estado</label><select id="status"><option>Concluída</option><option>Cancelada</option></select></div>
+ <div class="full"><label for="notes">Notas (opcional)</label><textarea id="notes" placeholder="N.º encomenda, espera, observações..."></textarea></div>
+</div>
+<button class="primary" style="width:100%;margin-top:13px" type="submit">Guardar entrega</button>
+</form>
+<p class="note" id="feeNote"></p>
+</section>
+
+<section id="page-costs">
+<h2>Moto e depreciação</h2>
+<div class="grid">
+ <div><label for="bikeValue">Valor atual da moto (€)</label><input id="bikeValue" type="number" min="0" step="0.01"></div>
+ <div><label for="depreciationRate">Depreciação por dia trabalhado (%)</label><input id="depreciationRate" type="number" min="0" max="1" step="0.01"></div>
+</div>
+<p class="note">Provisão prática para desgaste e perda de valor, não uma avaliação oficial. Ajusta a taxa à vontade.</p>
+<hr>
+<h2>Registar abastecimento</h2>
+<div class="grid">
+ <div><label for="fuelDate">Data</label><input id="fuelDate" type="date"></div>
+ <div><label for="fuelCost">Valor pago (€)</label><input id="fuelCost" inputmode="decimal" placeholder="15,00"></div>
+ <div><label for="fuelLitres">Litros (opcional)</label><input id="fuelLitres" inputmode="decimal" placeholder="8,5"></div>
+ <div><label for="fuelOdo">Km da moto (opcional)</label><input id="fuelOdo" inputmode="numeric"></div>
+ <div class="full"><label for="fuelNote">Posto / observação</label><input id="fuelNote" placeholder="Ex.: gasolina 95"></div>
+</div>
+<button class="primary" id="saveFuel" style="width:100%;margin-top:12px">Guardar abastecimento</button>
+<div id="fuelHistory" style="margin-top:10px"></div>
+</section>
+
+<section id="page-summary">
+<div class="actions">
+ <button class="secondary" data-period="day">Hoje</button>
+ <button class="secondary" data-period="week">Semana</button>
+ <button class="secondary" data-period="month">Mês</button>
+</div>
+<div class="status" id="periodLabel"></div>
+<div class="stats">
+ <div class="stat"><div class="k">Entregas concluídas</div><div class="v" id="pCount">0</div></div>
+ <div class="stat"><div class="k">Km tarifados</div><div class="v" id="pKm">0 km</div></div>
+ <div class="stat"><div class="k">Taxas de entrega</div><div class="v" id="pFees">€ 0,00</div></div>
+ <div class="stat"><div class="k">Diárias (€20/dia)</div><div class="v" id="pDaily">€ 0,00</div></div>
+ <div class="stat"><div class="k">Km reais (odómetro)</div><div class="v" id="pReal">0 km</div></div>
+ <div class="stat"><div class="k">Líquido</div><div class="v" id="pNet">€ 0,00</div></div>
+</div>
+<p class="note" id="pBreakdown"></p>
+</section>
+
+<section id="page-history">
+<h2>Histórico de entregas</h2>
+<div class="grid"><div><label for="filterDate">Filtrar por dia</label><input id="filterDate" type="date"></div><div style="display:flex;align-items:end"><button class="secondary" id="clearFilter" style="width:100%">Ver todas</button></div></div>
+<div style="overflow-x:auto;margin-top:12px"><table><thead><tr><th>Data / hora</th><th>Saída / destino</th><th>Km</th><th>Taxa</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="actions"><button class="secondary" id="csv">Exportar CSV</button><button class="secondary" id="backup">Cópia JSON</button><button class="secondary" id="importBtn">Importar cópia</button><input id="importFile" type="file" accept=".json,application/json,text/plain" hidden></div>
+<p class="note">Os dados ficam só neste navegador. Exporta uma cópia JSON com regularidade, sobretudo antes de limpar o Safari.</p>
+</section>
+
+<section id="page-settings">
+<h2>Valores por quilómetro</h2>
+<p class="note">Aplicam-se às novas entregas; o histórico mantém os valores já registados.</p>
+<div class="grid">
+ <div><label for="feeBand1">0 a 2 km (€)</label><input id="feeBand1" type="number" min="0" step="0.01"></div>
+ <div><label for="feeBand2">Mais de 2 até 5 km (€)</label><input id="feeBand2" type="number" min="0" step="0.01"></div>
+ <div><label for="feeBand3">Mais de 5 até 10 km (€)</label><input id="feeBand3" type="number" min="0" step="0.01"></div>
+ <div><label for="feeBand4">Mais de 10 até 15 km (€)</label><input id="feeBand4" type="number" min="0" step="0.01"></div>
+ <div class="full"><label for="feeOver15">Mais de 15 km (€), opcional</label><input id="feeOver15" type="number" min="0" step="0.01" placeholder="Vazio = combinado caso a caso"></div>
+ <div><label for="dailyFee">Diária (€)</label><input id="dailyFee" type="number" min="0" step="0.01"></div>
+</div>
+<button class="primary" id="saveFees" style="width:100%;margin-top:12px">Guardar valores</button>
+<div id="feeStatus" class="status good">Valores carregados.</div>
+<hr>
+<h2>Ponto de saída alternativo</h2>
+<label for="storeAddr">Morada usada só se o GPS não estiver disponível</label>
+<input id="storeAddr" placeholder="Rua, número, localidade">
+<button class="secondary" id="saveStore" style="width:100%;margin-top:10px">Guardar e localizar loja</button>
+<div id="storeStatus" class="status"></div>
+<hr>
+<h2>Painel da moto: início e fim do dia</h2>
+<p class="note">As fotografias servem só para ler o número; não ficam guardadas. Confirma sempre o valor lido.</p>
+<div class="grid">
+ <div class="full">
+  <label for="dashStartPhoto">Painel, início</label>
+  <input id="dashStartPhoto" type="file" accept="image/*" capture="environment">
+  <img id="dashStartPreview" class="photo-preview hidden" alt="Painel no início">
+  <label for="dashStartKm" style="margin-top:8px">Km iniciais</label>
+  <input id="dashStartKm" inputmode="decimal">
+  <label style="margin-top:8px">Combustível no início (barras)</label>
+  <div id="dashStartFuel" class="fuel-level"></div>
+ </div>
+ <div class="full">
+  <label for="dashEndPhoto">Painel, fim</label>
+  <input id="dashEndPhoto" type="file" accept="image/*" capture="environment">
+  <img id="dashEndPreview" class="photo-preview hidden" alt="Painel no fim">
+  <label for="dashEndKm" style="margin-top:8px">Km finais</label>
+  <input id="dashEndKm" inputmode="decimal">
+  <label style="margin-top:8px">Combustível no fim (barras)</label>
+  <div id="dashEndFuel" class="fuel-level"></div>
+ </div>
+</div>
+<div class="actions">
+ <button class="primary" id="saveDashboardDay">Guardar registo do dia</button>
+ <button class="secondary" id="readDashOdo">Ler km nas fotos</button>
+</div>
+<div id="dashStatus" class="status">Tira as fotos e seleciona as barras de combustível.</div>
+<div id="dashHistory" class="note"></div>
+</section>
+
+<script>
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const dstr=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>dstr(new Date()),nowT=()=>{const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())};
+const euro=n=>Number(n).toLocaleString('pt-PT',{style:'currency',currency:'EUR'});
+const num=v=>{const n=parseFloat(String(v??'').replace(',','.'));return Number.isFinite(n)?n:NaN};
+const fmt=(n,d=1)=>Number(n).toLocaleString('pt-PT',{maximumFractionDigits:d});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ld=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v??d}catch(e){return d}};
+const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){alert('Sem espaço de armazenamento. Exporta uma cópia JSON e apaga dados antigos.');return false}};
+const arr=v=>Array.isArray(v)?v:[];
+
+let records=arr(ld('entregas_v1',[])).map(r=>({...r,km:Number(r.km)||0,fee:r.fee==null?null:Number(r.fee)}));
+let fuelRecords=arr(ld('fuel_v1',[])),dashboardDays=arr(ld('gn_dashboard_days_v1',[]));
+let feeBands={b1:1.5,b2:2.5,b3:3.5,b4:5,over15:null,daily:20,...ld('gn_fee_bands_v1',{})};
+let store={addr:'Honorato, Braga, Portugal',lat:null,lon:null,...ld('gn_store_v1',{})};
+let activeRoute=ld('gn_active_route_v1',null);
+let bikeValue=Number(ld('bike_value_v1',3600))||0,depRate=Number(ld('depreciation_rate_v1',0.04));
+let period='day',watchId=null,track=[],lastPoint=null,gpsKm=0,wakeLock=null;
+let dashStartLevel=null,dashEndLevel=null,receiptFile=null,lastMaps='';
+
+const saveRecords=()=>sv('entregas_v1',records);
+const persist=()=>{saveRecords();render()};
+function fee(k){if(!Number.isFinite(k)||k<0)return null;const f=feeBands;if(k<=2)return +f.b1;if(k<=5)return +f.b2;if(k<=10)return +f.b3;if(k<=15)return +f.b4;return f.over15===''||f.over15==null?null:+f.over15}
+const done=()=>records.filter(r=>r.status==='Concluída');
+function hav(a,b){const R=6371,r=x=>x*Math.PI/180,d1=r(b.lat-a.lat),d2=r(b.lon-a.lon),q=Math.sin(d1/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(d2/2)**2;return 2*R*Math.asin(Math.sqrt(q))}
+function periodDates(){const n=new Date(),d=new Date(n.getFullYear(),n.getMonth(),n.getDate());if(period==='day')return[today(),today()];if(period==='month')return[dstr(new Date(n.getFullYear(),n.getMonth(),1)),today()];const s=new Date(d);s.setDate(d.getDate()-((d.getDay()+6)%7));return[dstr(s),today()]}
+const within=(x,a,b)=>x>=a&&x<=b;
+
+function render(){
+ const daily=+feeBands.daily||0;
+ const t=done().filter(r=>r.date===today());
+ $('todayCount').textContent=t.length;$('todayKm').textContent=fmt(t.reduce((s,r)=>s+r.km,0))+' km';
+ $('todayTotal').textContent=euro(t.reduce((s,r)=>s+(r.fee||0),0)+(t.length?daily:0));
+ const[a,b]=periodDates(),rs=done().filter(r=>within(r.date,a,b));
+ const km=rs.reduce((s,r)=>s+r.km,0),fees=rs.reduce((s,r)=>s+(r.fee||0),0),days=new Set(rs.map(r=>r.date)).size;
+ const dep=days*bikeValue*(depRate/100),fuel=fuelRecords.filter(x=>within(x.date,a,b)).reduce((s,x)=>s+x.cost,0);
+ const routes={};rs.forEach(r=>{if(r.routeActualKm!=null)routes[r.routeId]=r.routeActualKm});
+ const real=Object.values(routes).reduce((s,x)=>s+x,0),gross=fees+days*daily,net=gross-fuel-dep;
+ $('periodLabel').textContent=period==='day'?'Hoje':period==='week'?'Esta semana (segunda a hoje)':'Este mês (dia 1 a hoje)';
+ $('pCount').textContent=rs.length;$('pKm').textContent=fmt(km)+' km';$('pFees').textContent=euro(fees);$('pDaily').textContent=euro(days*daily);
+ $('pReal').textContent=fmt(real)+' km';$('pNet').textContent=euro(net);
+ $('pBreakdown').textContent='Bruto '+euro(gross)+' · Combustível '+euro(fuel)+' · Depreciação '+euro(dep)+' · Dias trabalhados '+days+(rs.length&&days?' · Média '+euro(net/days)+'/dia':'');
+ document.querySelectorAll('[data-period]').forEach(x=>{x.className=x.dataset.period===period?'primary':'secondary'});
+ const f=$('filterDate').value,view=records.filter(r=>!f||r.date===f).sort((x,y)=>(y.date+y.time).localeCompare(x.date+x.time));
+ $('rows').innerHTML=view.map(r=>`<tr><td>${esc(r.date.split('-').reverse().join('/'))}<br>${esc(r.time)}</td><td><b>${esc(r.routeId||'—')}</b><br>${esc(r.to)}<br><span class="note">${esc(r.status)}${r.notes?' · '+esc(r.notes):''}</span></td><td>${fmt(r.km)}</td><td>${r.fee==null?'Por definir':euro(r.fee)}</td><td><button class="danger" data-del="${esc(r.id)}">×</button></td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;padding:18px;color:#64748b">Sem entregas neste filtro.</td></tr>';
+ $('feeNote').textContent='Taxas: até 2 km '+euro(feeBands.b1)+' · até 5 km '+euro(feeBands.b2)+' · até 10 km '+euro(feeBands.b3)+' · até 15 km '+euro(feeBands.b4)+' · acima: '+(feeBands.over15==null||feeBands.over15===''?'por definir':euro(feeBands.over15))+'. Diária de '+euro(daily)+' por dia com pelo menos uma entrega concluída.';
+}
+$('rows').addEventListener('click',e=>{const id=e.target.dataset?.del;if(id&&confirm('Apagar esta entrega?')){records=records.filter(r=>r.id!==id);persist()}});
+
+// Saída
+function showRoute(){
+ if(activeRoute){$('routeStatus').className='status';$('routeStatus').textContent='Saída aberta · odómetro inicial: '+fmt(activeRoute.odoStart)+' km.'}
+ $('openRoute').disabled=!!activeRoute;$('closeRoute').disabled=!activeRoute;
+}
+$('openRoute').onclick=()=>{
+ if(activeRoute)return;
+ const last=records.filter(r=>r.routeOdoEnd!=null).map(r=>r.routeOdoEnd).pop();
+ const raw=prompt('Km da moto no INÍCIO da saída (odómetro):',last??'');
+ if(raw===null)return;const s=num(raw);
+ if(!Number.isFinite(s)||s<0)return alert('Introduz um valor válido.');
+ activeRoute={id:'R'+Date.now(),started:new Date().toISOString(),odoStart:s};
+ sv('gn_active_route_v1',activeRoute);showRoute();
+};
+$('closeRoute').onclick=()=>{
+ if(!activeRoute)return;
+ const raw=prompt('Km da moto no FIM da saída (odómetro):');if(raw===null)return;
+ const e=num(raw);if(!Number.isFinite(e)||e<activeRoute.odoStart)return alert('Os km finais têm de ser iguais ou superiores aos iniciais.');
+ const A=activeRoute,real=Math.round((e-A.odoStart)*10)/10,closed=new Date().toISOString();
+ records.filter(r=>r.routeId===A.id).forEach(r=>{r.routeClosed=closed;r.routeOdoStart=A.odoStart;r.routeOdoEnd=e;r.routeActualKm=real});
+ saveRecords();activeRoute=null;localStorage.removeItem('gn_active_route_v1');
+ $('routeStatus').className='status good';$('routeStatus').textContent='Saída fechada · '+fmt(A.odoStart)+' → '+fmt(e)+' km · '+fmt(real)+' km percorridos.';
+ showRoute();render();
+};
+
+// Gravar entrega (único ponto de entrada)
+function addDelivery(d){
+ if(d.order&&records.some(r=>r.order===d.order&&r.date===d.date)&&!confirm('Já existe uma entrega com a encomenda '+d.order+' neste dia. Guardar mesmo assim?'))return false;
+ const rec={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),routeId:activeRoute?activeRoute.id:'Avulsa',routeOdoStart:activeRoute?activeRoute.odoStart:null,from:'Honorato',fee:fee(d.km),status:'Concluída',method:'Manual / Google Maps',notes:'',...d};
+ records.push(rec);persist();return true;
+}
+$('form').onsubmit=e=>{
+ e.preventDefault();const k=num($('km').value);
+ if(!Number.isFinite(k)||k<0)return alert('Indica quilómetros válidos.');
+ if(!activeRoute&&!confirm('Não há saída aberta. Guardar como entrega avulsa?'))return;
+ const ok=addDelivery({date:$('date').value,time:$('time').value,to:$('to').value.trim(),km:Math.round(k*10)/10,status:$('status').value,method:$('method').value,notes:$('notes').value.trim(),gpsKm:track.length>1?Math.round(gpsKm*100)/100:null});
+ if(ok){$('to').value='';$('km').value='';$('notes').value='';$('date').value=today();$('time').value=nowT();updateFeePreview();track=[];gpsKm=0;lastPoint=null}
+};
+function updateFeePreview(){
+ const k=num($('km').value),el=$('feePreview');
+ if(!Number.isFinite(k)||k<0){el.textContent='Introduz os km para ver a taxa.';el.className='status';return}
+ const v=fee(k);el.className='status good';el.textContent='Taxa: '+(v==null?'por definir':euro(v));
+}
+$('km').addEventListener('input',updateFeePreview);
+
+// GPS
+const gstat=(m,c='')=>{$('gpsStatus').className='status '+c;$('gpsStatus').textContent=m};
+async function startGPS(){
+ if(!navigator.geolocation)return gstat('Sem GPS neste navegador. Usa km manuais.','warn');
+ if(window.isSecureContext===false)return gstat('O GPS só funciona em páginas https (ou localhost). Abre a app por https ou usa km manuais.','warn');
+ if(watchId!==null)return;
+ track=[];lastPoint=null;gpsKm=0;gstat('A obter localização…');
+ try{if(navigator.wakeLock)wakeLock=await navigator.wakeLock.request('screen')}catch(e){}
+ watchId=navigator.geolocation.watchPosition(pos=>{
+  const p={lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy};
+  if(p.acc>80)return;
+  if(lastPoint){const d=hav(lastPoint,p);if(d>=0.5)gstat('Salto de localização ignorado. Confirma os km.','warn');else if(d>0.003)gpsKm+=d}
+  track.push(p);lastPoint=p;gstat('GPS ativo · '+gpsKm.toFixed(2).replace('.',',')+' km · '+track.length+' pontos','good');
+ },err=>{gstat('Erro de GPS: '+err.message,'warn');stopGPS(false)},{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
+ $('startGps').disabled=true;$('stopGps').disabled=false;
+}
+function stopGPS(msg=true){
+ if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;
+ try{wakeLock&&wakeLock.release()}catch(e){}wakeLock=null;
+ $('startGps').disabled=false;$('stopGps').disabled=true;
+ if(msg)track.length>1?gstat('GPS parado · '+gpsKm.toFixed(2).replace('.',',')+' km medidos (guardados com a próxima entrega).','good'):gstat('Pontos insuficientes. Usa km manuais.','warn');
+}
+$('startGps').onclick=startGPS;$('stopGps').onclick=()=>stopGPS(true);
+
+// Exportar / importar
+function download(data,name,type){const a=document.createElement('a'),u=URL.createObjectURL(new Blob([data],{type}));a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
+$('csv').onclick=()=>{const head=['Data','Hora','Saída','Encomenda','Destino','Km','Taxa EUR','Estado','Método','Km reais saída','Notas'];
+ const q=v=>{v=String(v??'');if(/^[=+\-@]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"'};
+ download('\ufeff'+[head,...records.map(r=>[r.date,r.time,r.routeId,r.order,r.to,r.km,r.fee??'',r.status,r.method,r.routeActualKm??'',r.notes])].map(x=>x.map(q).join(';')).join('\n'),'gn-entregas.csv','text/csv;charset=utf-8')};
+$('backup').onclick=()=>download(JSON.stringify({deliveries:records,fuel:fuelRecords,bikeValue,depreciationRate:depRate,feeBands,store,dashboardDays},null,2),'backup-gn-entregas-'+today()+'.json','application/json');
+$('importBtn').onclick=()=>$('importFile').click();
+$('importFile').onchange=async e=>{
+ const f=e.target.files[0];if(!f)return;
+ try{
+  const d=JSON.parse(await f.text()),dl=Array.isArray(d)?d:d.deliveries;if(!Array.isArray(dl))throw 0;
+  if(!confirm('Substituir TODO o histórico atual por esta cópia ('+dl.length+' entregas)?'))return;
+  records=dl.map(r=>({...r,id:String(r.id||Date.now()+Math.random()),km:Number(r.km)||0,fee:r.fee==null||r.fee===''?null:Number(r.fee)}));
+  fuelRecords=arr(d.fuel);dashboardDays=arr(d.dashboardDays);
+  if(d.bikeValue!=null){bikeValue=Number(d.bikeValue)||0;sv('bike_value_v1',bikeValue)}
+  if(d.depreciationRate!=null){depRate=Number(d.depreciationRate)||0;sv('depreciation_rate_v1',depRate)}
+  if(d.feeBands){feeBands={...feeBands,...d.feeBands};sv('gn_fee_bands_v1',feeBands)}
+  if(d.store){store={...store,...d.store};sv('gn_store_v1',store)}
+  sv('fuel_v1',fuelRecords);sv('gn_dashboard_days_v1',dashboardDays);
+  persist();renderFuel();renderDashboard();loadInputs();alert('Cópia importada.');
+ }catch(x){alert('Cópia inválida.')}
+ e.target.value='';
+};
+
+// Custos
+$('bikeValue').addEventListener('change',()=>{bikeValue=Math.max(0,num($('bikeValue').value)||0);sv('bike_value_v1',bikeValue);render()});
+$('depreciationRate').addEventListener('change',()=>{depRate=Math.min(1,Math.max(0,num($('depreciationRate').value)||0));$('depreciationRate').value=depRate;sv('depreciation_rate_v1',depRate);render()});
+$('saveFuel').onclick=()=>{
+ const cost=num($('fuelCost').value);if(!Number.isFinite(cost)||cost<=0)return alert('Indica o valor pago.');
+ fuelRecords.push({id:Date.now().toString(36),date:$('fuelDate').value||today(),cost,litres:num($('fuelLitres').value)||null,odo:$('fuelOdo').value||'',note:$('fuelNote').value.trim()});
+ sv('fuel_v1',fuelRecords);['fuelCost','fuelLitres','fuelOdo','fuelNote'].forEach(i=>$(i).value='');renderFuel();render();
+};
+function renderFuel(){
+ $('fuelHistory').innerHTML=fuelRecords.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #e2e8f0;font-size:13px"><span>${esc(x.date.split('-').reverse().join('/'))} · ${euro(x.cost)}${x.litres?' · '+fmt(x.litres,2)+' L':''}${x.litres?' · '+euro(x.cost/x.litres)+'/L':''}${x.note?' · '+esc(x.note):''}</span><button class="danger" data-fdel="${esc(x.id)}">×</button></div>`).join('')||'<p class="note">Sem abastecimentos registados.</p>';
+}
+$('fuelHistory').addEventListener('click',e=>{const id=e.target.dataset?.fdel;if(id&&confirm('Apagar este abastecimento?')){fuelRecords=fuelRecords.filter(x=>x.id!==id);sv('fuel_v1',fuelRecords);renderFuel();render()}});
+
+// Configuração
+function loadInputs(){
+ $('feeBand1').value=feeBands.b1;$('feeBand2').value=feeBands.b2;$('feeBand3').value=feeBands.b3;$('feeBand4').value=feeBands.b4;$('feeOver15').value=feeBands.over15??'';$('dailyFee').value=feeBands.daily;
+ $('bikeValue').value=bikeValue;$('depreciationRate').value=depRate;$('storeAddr').value=store.addr;
+ $('storeStatus').textContent=store.lat!=null?'Loja localizada e guardada.':'Loja ainda não localizada (acontece no primeiro cálculo).';
+}
+$('saveFees').onclick=()=>{
+ const ids=['feeBand1','feeBand2','feeBand3','feeBand4','dailyFee'];
+ if(ids.some(i=>!Number.isFinite(num($(i).value))||num($(i).value)<0))return alert('Preenche os escalões e a diária com valores iguais ou superiores a zero.');
+ const o=$('feeOver15').value.trim();if(o!==''&&(!Number.isFinite(num(o))||num(o)<0))return alert('Valor acima de 15 km inválido.');
+ feeBands={b1:num($('feeBand1').value),b2:num($('feeBand2').value),b3:num($('feeBand3').value),b4:num($('feeBand4').value),over15:o===''?null:num(o),daily:num($('dailyFee').value)};
+ sv('gn_fee_bands_v1',feeBands);$('feeStatus').textContent='Valores guardados. Aplicam-se às próximas entregas.';render();
+};
+$('saveStore').onclick=async()=>{
+ const a=$('storeAddr').value.trim();if(a.length<4)return alert('Indica a morada da loja.');
+ $('storeStatus').className='status';$('storeStatus').textContent='A localizar…';
+ try{const r=await geocode(a);if(!r.length)throw new Error('Morada não encontrada.');store={addr:a,lat:r[0].lat,lon:r[0].lon};sv('gn_store_v1',store);$('storeStatus').className='status good';$('storeStatus').textContent='Loja guardada: '+r[0].label}
+ catch(e){$('storeStatus').className='status warn';$('storeStatus').textContent=e.message}
+};
+
+// Painel
+function makeFuelButtons(id,setter){
+ const h=$(id);h.innerHTML='';
+ for(let n=0;n<=8;n++){const b=document.createElement('button');b.type='button';b.textContent=n===8?'8/8':String(n);b.setAttribute('aria-label',n+' de 8 barras');
+  b.onclick=()=>{setter(n);[...h.children].forEach((x,i)=>x.classList.toggle('selected',i===n))};h.appendChild(b)}
+}
+makeFuelButtons('dashStartFuel',n=>dashStartLevel=n);makeFuelButtons('dashEndFuel',n=>dashEndLevel=n);
+const dashImgs={start:null,end:null};
+async function toCanvasBlob(file,max,q){
+ let src,w,h,bmp=null;
+ try{if(window.createImageBitmap){bmp=await createImageBitmap(file,{imageOrientation:'from-image'});src=bmp;w=bmp.width;h=bmp.height}}catch(e){bmp=null}
+ if(!bmp){
+  const url=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>no(new Error('Não consegui ler o ficheiro.'));r.readAsDataURL(file)});
+  const img=new Image();
+  await new Promise((ok,no)=>{img.onload=ok;img.onerror=()=>no(new Error('Não consegui abrir a fotografia. Tenta outra.'));img.src=url});
+  src=img;w=img.naturalWidth;h=img.naturalHeight;
+ }
+ const s=Math.min(1,max/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);
+ c.getContext('2d').drawImage(src,0,0,c.width,c.height);
+ const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',q));
+ if(!blob)throw new Error('Não foi possível preparar a imagem.');
+ return{blob,canvas:c,url:c.toDataURL('image/jpeg',.6)};
+}
+async function dashPhoto(which,file){
+ if(!file)return;
+ try{const r=await toCanvasBlob(file,1600,.9);dashImgs[which]=r.blob;const p=$(which==='start'?'dashStartPreview':'dashEndPreview');p.src=r.url;p.classList.remove('hidden');$('dashStatus').textContent='Foto carregada. Toca em “Ler km nas fotos”.'}
+ catch(e){$('dashStatus').textContent=e.message}
+}
+$('dashStartPhoto').onchange=e=>dashPhoto('start',e.target.files[0]);
+$('dashEndPhoto').onchange=e=>dashPhoto('end',e.target.files[0]);
+async function loadOCR(){
+ if(window.Tesseract)return;
+ for(const u of['https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js','https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js']){
+  try{await new Promise((ok,no)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=no;document.head.appendChild(s)});return}catch(e){}
+ }
+ throw new Error('Não foi possível carregar o leitor OCR. Verifica a internet.');
+}
+async function readOdometer(blob){
+ await loadOCR();
+ const t=(await Tesseract.recognize(blob,'eng')).data.text||'';
+ const c=(t.match(/\b\d{4,7}(?:[.,]\d)?\b/g)||[]).map(x=>num(x));
+ if(!c.length)throw new Error('Não identifiquei o odómetro. Escreve os km à mão.');
+ return c.find(x=>String(Math.floor(x)).length>=5&&String(Math.floor(x)).length<=6)??c[0];
+}
+$('readDashOdo').onclick=async()=>{
+ const b=$('readDashOdo');b.disabled=true;$('dashStatus').textContent='A analisar…';
+ try{
+  if(!dashImgs.start&&!dashImgs.end)throw new Error('Tira primeiro a fotografia do painel.');
+  if(dashImgs.start)$('dashStartKm').value=await readOdometer(dashImgs.start);
+  if(dashImgs.end)$('dashEndKm').value=await readOdometer(dashImgs.end);
+  $('dashStatus').textContent='Leitura concluída. Confirma os números: reflexos podem causar erros.';
+ }catch(e){$('dashStatus').textContent=e.message}finally{b.disabled=false}
+};
+$('saveDashboardDay').onclick=()=>{
+ const s=num($('dashStartKm').value),e=num($('dashEndKm').value);
+ if(!Number.isFinite(s)||!Number.isFinite(e)||s<=0||e<s)return alert('Confirma os km inicial e final (o final não pode ser inferior).');
+ if((dashStartLevel===null||dashEndLevel===null)&&!confirm('Não selecionaste as barras de combustível. Guardar mesmo assim?'))return;
+ const it={date:today(),startKm:s,endKm:e,distance:Math.round((e-s)*10)/10,startFuelBars:dashStartLevel,endFuelBars:dashEndLevel};
+ dashboardDays=dashboardDays.filter(x=>x.date!==it.date);dashboardDays.push(it);sv('gn_dashboard_days_v1',dashboardDays);
+ $('dashStatus').className='status good';$('dashStatus').textContent='Guardado: '+fmt(it.distance)+' km percorridos.';renderDashboard();
+};
+function renderDashboard(){
+ $('dashHistory').innerHTML=dashboardDays.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30).map(x=>`<div style="padding:8px 0;border-bottom:1px solid #e2e8f0"><b>${esc(x.date.split('-').reverse().join('/'))}</b> · ${fmt(x.distance)} km · Combustível ${x.startFuelBars??'—'}/8 → ${x.endFuelBars??'—'}/8</div>`).join('')||'Sem registos diários do painel.';
+}
+
+// Talão
+const rs=(m,c='')=>{$('receiptStatus').className='status '+c;$('receiptStatus').textContent=m};
+async function onReceipt(e){
+ const file=e.target.files&&e.target.files[0];e.target.value='';
+ if(!file)return;
+ if(file.type&&!file.type.startsWith('image/'))return rs('Escolhe uma fotografia (JPG, PNG ou HEIC).','warn');
+ originP=getPos();originP.catch(()=>{});rs('A preparar fotografia…');
+ try{
+  let r=null;try{r=await toCanvasBlob(file,2200,.92)}catch(e){}receiptFile=r?r.blob:file;window.receiptCanvas=r?r.canvas:null;
+  if(r){$('receiptPreview').src=r.url;$('receiptPreview').classList.remove('hidden')}
+  await readReceipt();
+ }catch(err){rs(err.message,'warn')}
+}
+$('receiptCam').addEventListener('change',onReceipt);$('receiptGal').addEventListener('change',onReceipt);
+const OCR_OPTS={langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/por/4.0.0_best_int',workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.0'};
+function rot(c,deg){const o=document.createElement('canvas'),sw=deg%180!==0;o.width=sw?c.height:c.width;o.height=sw?c.width:c.height;const x=o.getContext('2d');x.translate(o.width/2,o.height/2);x.rotate(deg*Math.PI/180);x.drawImage(c,-c.width/2,-c.height/2);return o}
+const ocrScore=t=>(String(t).match(/delivery|endere|cliente|nome|total|complemento|subtotal|entrega/gi)||[]).length;
+async function readReceipt(){
+ try{
+  rs('A carregar o leitor…');await loadOCR();
+  const logger=m=>{if(m.status==='recognizing text')rs('A ler talão: '+Math.round((m.progress||0)*100)+'%')};
+  const worker=await Tesseract.createWorker('por',1,{...OCR_OPTS,logger});
+  let best='',bs=-1;
+  const srcs=window.receiptCanvas?[0,90,270,180].map(d=>d?rot(window.receiptCanvas,d):window.receiptCanvas):[receiptFile];
+  for(const src of srcs){
+   const r=await worker.recognize(src),t=r.data.text||'',sc=ocrScore(t);
+   if(sc>bs){bs=sc;best=t}if(sc>=4)break;
+  }
+  await worker.terminate();
+  $('ocrRaw').value=best;parseReceipt(best);
+  if($('customerAddress').value&&$('customerCity').value)autoCalc();
+ }catch(err){rs('Falha na leitura: '+((err&&err.message)||String(err||'o leitor foi bloqueado'))+'. Abre o ficheiro diretamente no Safari/Chrome ou preenche à mão.','warn')}
+}
+async function autoCalc(){try{const{km,og}=await routeKm(),v=fee(km);dstat('Km calculados: '+fmt(km)+' km · valor da corrida: '+(v==null?'por definir':euro(v))+(og.src==='store'?' (GPS indisponível: usei o ponto alternativo)':'')+'. Toca no botão azul para adicionar.','good')}catch(e){dstat((e&&e.message)||'Não consegui calcular os km.','warn')}}
+function parseReceipt(text){
+ const raw=String(text).replace(/\r/g,''),N=x=>x.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const lines=raw.split('\n').map(x=>x.replace(/[|¦]/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+ const find=(re,from=0)=>{for(let k=from;k<lines.length;k++)if(re.test(N(lines[k])))return k;return -1};
+ const after=l=>{const i=l.indexOf(':');return i>=0?l.slice(i+1).trim():l.replace(/^\S+\s*/,'').trim()};
+ const set=(id,v)=>{if(v)$(id).value=v};
+ ['orderNo','clientName','customerAddress','customerPostal','customerCity','customerExtra'].forEach(i=>$(i).value='');
+ let m=raw.match(/(?:delivery|encomenda|pedido|order)\s*(?:n[.º°o]*\s*)?[:#-]?\s*#?\s*(\d{4,})/i);if(m)set('orderNo',m[1]);
+ const cs=Math.max(0,find(/dados do cliente/));let i=find(/^(?:nome(?: do cliente)?|cliente|customer name)\s*[:#-]/,cs);if(i>=0)set('clientName',after(lines[i]));
+ i=find(/^(?:ender\w*|morada|address|rua)\s*[:#-]/,cs);
+ if(i>=0){
+  let a=after(lines[i]);const stop=/^(?:complemento|andar|tipo|data|hora|telefone|telemovel|codigo postal|cod\. postal|cp|localidade|cidade|cliente|nome|nif|pedido|delivery)\s*[:#-]?/;
+  for(let j=i+1;j<Math.min(lines.length,i+4);j++){if(stop.test(N(lines[j]))||/\d{4}-\d{3}/.test(lines[j]))break;if(lines[j].length>2)a+=' '+lines[j]}
+  a=a.replace(/[, ]+\d{4}-\d{3}.*$/,'').replace(/[;,.\s]+$/,'');const cm=a.lastIndexOf(',');if(!/\d{4}-\d{3}/.test(raw)&&cm>0&&!/\d/.test(a.slice(cm+1))){set('customerCity',a.slice(cm+1).trim());a=a.slice(0,cm).trim()}set('customerAddress',a);
+ }
+ m=raw.match(/\b(\d{4}-\d{3})[ ,]+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ -]{2,})/);if(m){set('customerPostal',m[1]);set('customerCity',m[2].trim())}
+ else{m=raw.match(/\b(\d{4}-\d{3})\b/);if(m)set('customerPostal',m[1])}
+ i=find(/^(?:complemento|andar|fracao|porta)\s*[:#-]/,cs);if(i>=0)set('customerExtra',after(lines[i]));
+ m=raw.match(/(\d{2})[\/.-](\d{2})[\/.-](\d{4})\s*,?\s*(\d{2}):(\d{2})/);
+ if(m){$('receiptDate').value=m[3]+'-'+m[2]+'-'+m[1];$('receiptTime').value=m[4]+':'+m[5]}
+ const ok=$('orderNo').value||$('clientName').value||$('customerAddress').value;
+ rs(ok?'Campos identificados. Confirma nome, morada, código postal e localidade.':'Não consegui separar os campos. Corrige o texto ou preenche à mão.',ok?'good':'warn');
+}
+
+// Rotas
+async function ft(url,ms=12000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{return await fetch(url,{headers:{Accept:'application/json'},signal:c.signal})}finally{clearTimeout(t)}}
+const photonLabel=f=>{const p=f.properties||{};return[p.name,p.street,p.housenumber,p.postcode,p.city].filter(Boolean).join(', ')};
+async function geocode(q){
+ q=String(q||'').trim();if(q.length<4)throw new Error('Morada incompleta.');
+ try{const r=await ft('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=pt&q='+encodeURIComponent(q));
+  if(r.ok){const a=await r.json();if(a.length)return a.map(x=>({lat:+x.lat,lon:+x.lon,label:x.display_name}))}}catch(e){}
+ try{const r=await ft('https://photon.komoot.io/api/?'+new URLSearchParams({q,limit:'5'}));
+  if(!r.ok)throw 0;const j=await r.json();
+  return(j.features||[]).filter(x=>x.geometry?.coordinates).map(x=>({lon:+x.geometry.coordinates[0],lat:+x.geometry.coordinates[1],label:photonLabel(x)}))}
+ catch(e){throw new Error('Serviços de pesquisa indisponíveis. Tenta de novo ou usa km manuais.')}
+}
+const dstat=(m,c='')=>{$('distanceStatus').className='status '+c;$('distanceStatus').textContent=m};
+function getPos(){
+ return new Promise((ok,no)=>{
+  if(!navigator.geolocation)return no(new Error('Este navegador não tem GPS.'));
+  if(window.isSecureContext===false)return no(new Error('O GPS só funciona em páginas https.'));
+  navigator.geolocation.getCurrentPosition(p=>ok({lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy}),e=>no(new Error(e&&e.code===1?'Permissão de localização negada.':'Não consegui obter a localização GPS.')),{enableHighAccuracy:true,timeout:15000,maximumAge:30000});
+ });
+}
+let originP=null;
+async function getOrigin(){
+ try{const p=await(originP||getPos());return{lat:p.lat,lon:p.lon,src:'gps',acc:p.acc}}
+ catch(e){
+  if(store.lat==null){const o=await geocode(store.addr);if(!o.length)throw new Error(((e&&e.message)||'GPS indisponível')+' E não encontrei o ponto de saída alternativo (Config.).');store.lat=o[0].lat;store.lon=o[0].lon;sv('gn_store_v1',store)}
+  return{lat:store.lat,lon:store.lon,src:'store',warn:e&&e.message}
+ }
+}
+async function routeKm(){
+ const street=$('customerAddress').value.trim(),city=$('customerCity').value.trim(),postal=$('customerPostal').value.trim();
+ if(!street||!city)throw new Error('Preenche a rua/número e a localidade.');
+ dstat('A procurar a morada do cliente…');
+ let dests=await geocode([street,postal,city,'Portugal'].filter(Boolean).join(', '));
+ if(!dests.length&&postal)dests=await geocode([street,city,'Portugal'].join(', '));
+ if(!dests.length)throw new Error('Morada não encontrada. Confirma rua, número e localidade.');
+ let d=dests[0];
+ if(dests.length>1){
+  const c=prompt('Confirma a morada (número da opção):\n\n'+dests.map((f,i)=>(i+1)+'. '+f.label).join('\n'),'1');
+  if(c===null)throw new Error('Pesquisa cancelada.');
+  const ix=Number(c)-1;if(!dests[ix])throw new Error('Opção inválida.');d=dests[ix];
+ }
+ dstat('A obter a tua localização…');const og=await getOrigin();
+ dstat('A calcular o percurso…');
+ const r=await ft(`https://router.project-osrm.org/route/v1/driving/${og.lon},${og.lat};${d.lon},${d.lat}?overview=false`);
+ if(!r.ok)throw new Error('Serviço de rotas indisponível (HTTP '+r.status+').');
+ const j=await r.json();if(j.code!=='Ok'||!j.routes?.length)throw new Error('Sem rota de carro para esta morada.');
+ const km=Math.round(j.routes[0].distance/100)/10;if(km>150)throw new Error('Distância improvável ('+fmt(km)+' km). Confirma a morada e a tua localização.');return{km,label:d.label,og};
+}
+$('finishReceipt').onclick=async()=>{
+ const b=$('finishReceipt');
+ if(!$('customerAddress').value.trim()||!$('customerCity').value.trim())return alert('Fotografa o talão e confirma a rua e a localidade.');
+ if(!activeRoute&&!confirm('Não há saída aberta. Adicionar como entrega avulsa?'))return;
+ b.disabled=true;$('mapsLink').classList.add('hidden');
+ try{
+  const{km,label,og}=await routeKm(),v=fee(km);
+  const addr=[$('customerAddress').value.trim(),$('customerExtra').value.trim(),$('customerPostal').value.trim(),$('customerCity').value.trim()].filter(Boolean).join(', ');
+  const ok=addDelivery({date:$('receiptDate').value||today(),time:$('receiptTime').value||nowT(),to:addr,km,method:'OpenStreetMap + OSRM (grátis)',from:og.src==='gps'?'Localização GPS':'Ponto alternativo',order:$('orderNo').value.trim(),notes:[$('orderNo').value.trim(),$('clientName').value.trim()].filter(Boolean).join(' - ')});
+  if(!ok){dstat('Entrega não guardada.','warn');return}
+  $('mapsLink').href='https://www.google.com/maps/dir/?api=1&origin='+og.lat+','+og.lon+'&destination='+encodeURIComponent(addr)+'&travelmode=driving';
+  $('mapsLink').classList.remove('hidden');
+  dstat('Entrega adicionada: '+fmt(km)+' km · taxa '+(v==null?'por definir':euro(v))+'. Confere se a morada encontrada corresponde ao talão: '+label,'good');
+  ['orderNo','clientName','customerAddress','customerPostal','customerCity','customerExtra','receiptDate','receiptTime','ocrRaw'].forEach(i=>$(i).value='');
+  $('receiptPreview').classList.add('hidden');receiptFile=null;originP=null;rs('Pronto para o próximo talão.','good');
+ }catch(err){dstat(err.message||'Erro ao calcular a distância.','warn')}
+ finally{b.disabled=false}
+};
+
+// Navegação e arranque
+const pages=['page-runs','page-costs','page-summary','page-history','page-settings'];
+function go(p){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.page===p));pages.forEach(id=>$(id).classList.toggle('page-hidden',id!==p));try{localStorage.setItem('gn_tab',p)}catch(e){}scrollTo(0,0)}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>go(b.dataset.page)));
+document.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>{period=b.dataset.period;render()});
+$('filterDate').onchange=render;$('clearFilter').onclick=()=>{$('filterDate').value='';render()};
+function freshDates(){if(!$('to').value&&!$('km').value){$('date').value=today();$('time').value=nowT()}$('fuelDate').value=$('fuelDate').value||today()}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){freshDates();render()}});
+$('date').value=today();$('time').value=nowT();$('fuelDate').value=today();
+loadInputs();renderFuel();renderDashboard();showRoute();let tab='page-runs';try{const t=localStorage.getItem('gn_tab');if(pages.includes(t))tab=t}catch(e){}go(tab);render();
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+window.addEventListener('storage',e=>{if(e.key==='entregas_v1'){records=arr(ld('entregas_v1',[])).map(r=>({...r,km:Number(r.km)||0,fee:r.fee==null?null:Number(r.fee)}));render()}if(e.key==='gn_active_route_v1'){activeRoute=ld('gn_active_route_v1',null);showRoute()}});
+</script></body></html>
